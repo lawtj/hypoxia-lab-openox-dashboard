@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import os
 from redcap import Project
-from itables import show
 import math
 
 from hypoxialab_functions import *
