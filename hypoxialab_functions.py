@@ -72,5 +72,18 @@ def pt_counts(konica,joined):
     haskonica_notmonk = list(set(haskonica) - set(hasmonk))
     return haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk
 
+# calculate numeric stats
+def stats(var, joined):
+    stats = []
+    stats.append(joined.groupby(by=['device','patient_id']).mean(numeric_only=True)[var].reset_index().groupby(by='device').mean()[var])
+    stats.append(joined.groupby(by=['device','patient_id']).min(numeric_only=True)[var].reset_index().groupby(by='device').min()[var])
+    stats.append(joined.groupby(by=['device','patient_id']).max(numeric_only=True)[var].reset_index().groupby(by='device').max()[var])
+
+    stats = pd.concat(stats, axis=1)
+
+    stats.columns = ['mean_'+var,'min_'+var,'max_'+var]
+    stats[var+'_range'] = stats['max_'+var]-stats['min_'+var]
+    return stats
+
 def ita(row):
     return (np.arctan((row['lab_l']-50)/row['lab_b'])) * (180/math.pi)

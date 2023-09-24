@@ -27,6 +27,8 @@ one, two = st.columns(2)
 one.metric('Has Konica but not Monk', len(haskonica_notmonk))
 two.metric('Has Monk but not Konica', len(hasmonk_notkonica))
 
-st.write(db)
+st.dataframe(db, use_container_width=True)
 
+st.subheader('Data problems')
 st.write('we are missing birthdays for some people, so we cannot calculate age for them')
+st.write('ID# 1132 has an incorrect birthday, listed as this year, which is causing minimum age to be listed as zero')

@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from redcap import Project
+#from itables import show
 import math
 
 from hypoxialab_functions import *
@@ -22,7 +23,7 @@ manual = manual[['patient_id','device','date']]
 joined = session.merge(manual, left_on=['patient_id','session_date'], right_on=['patient_id','date'], how='left')
 
 # take the median of each unique session
-konica_unique_median = konica.groupby(['date','session','upi','group']).median(numeric_only=True).reset_index()
+konica_unique_median = konica.groupby(['date','upi','group']).median(numeric_only=True).reset_index()
 # calculate the ITA
 konica_unique_median['ita'] = konica_unique_median.apply(ita, axis=1)
 
@@ -42,21 +43,10 @@ joined['dob'] = pd.to_datetime(joined['dob'])
 #age at session in years
 joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 
+#define monk skin tone categories
 mstlight = ['A','B','C']
 mstmedium = ['D','E','F','G']
 mstdark = ['H','I','J']
-
-# %%
-haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
-
-#print lenghts of each list in a loop 
-#list descriptions
-desc = ['patients with konica data', 'patients who have monk fingernail data', 'patients who have monk fingernail data and konica data', 'patients who have monk fingernail data but no konica data', 'patients who have konica data but no monk fingernail data']
-for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
-    print(i,len(j))
-
-# %% [markdown]
-# # Number of patients per device
 
 # %%
 #begin creatnig the dashboard frame as db
@@ -93,19 +83,19 @@ for i,j in zip(itacriteria,criterianames):
 
 
 #### add age at session
-ages = []
 
-# mean, min, max age at session
-ages.append(joined.groupby(by=['device','patient_id']).mean(numeric_only=True)['age_at_session'].reset_index().groupby(by='device').mean()['age_at_session'])
-ages.append(joined.groupby(by=['device','patient_id']).min(numeric_only=True)['age_at_session'].reset_index().groupby(by='device').min()['age_at_session'])
-ages.append(joined.groupby(by=['device','patient_id']).max(numeric_only=True)['age_at_session'].reset_index().groupby(by='device').max()['age_at_session'])
-
-ages = pd.concat(ages, axis=1)
-ages.columns = ['mean_age','min_age','max_age']
-ages['age_range'] = ages['max_age']-ages['min_age']
-
-db = db.merge(ages, left_on='device', right_index=True, how='outer')
+db = db.merge(stats('age_at_session',joined), left_on='device', right_index=True, how='outer')
+db = db.merge(stats('bmi',joined), left_on='device', right_index=True, how='outer')
 
 db
+
+# %%
+haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
+
+#print lenghts of each list in a loop 
+#list descriptions
+desc = ['patients with konica data', 'patients who have monk fingernail data', 'patients who have monk fingernail data and konica data', 'patients who have monk fingernail data but no konica data', 'patients who have konica data but no monk fingernail data']
+for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
+    print(i,len(j))
 
 
