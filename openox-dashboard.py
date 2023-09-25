@@ -19,11 +19,12 @@ if 'db' not in st.session_state:
     is_streamlit = True
     with st.spinner('Loading data from Redcap...'):
         from nbtopy import *
-        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica']):
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, db_style],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','db_style']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:
     db = st.session_state['db']
+    db_style = st.session_state['db_style'rr]
     haskonica = st.session_state['haskonica']
     hasmonk = st.session_state['hasmonk']
     hasboth = st.session_state['hasboth']
