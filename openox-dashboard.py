@@ -44,7 +44,7 @@ one, two = st.columns(2)
 one.metric('Has Konica but not Monk', len(haskonica_notmonk))
 two.metric('Has Monk but not Konica', len(hasmonk_notkonica))
 
-st.dataframe(db, use_container_width=True)
+#st.dataframe(db, use_container_width=True)
 
 st.dataframe(db_style, use_container_width=True)
 
