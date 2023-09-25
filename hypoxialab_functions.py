@@ -87,3 +87,9 @@ def stats(var, joined):
 
 def ita(row):
     return (np.arctan((row['lab_l']-50)/row['lab_b'])) * (180/math.pi)
+
+# style database
+def highlight_value_greater(s, cols_to_sum,threshold):
+    sums = db[cols_to_sum].sum(axis=1)
+    mask = s > sums*threshold
+    return ['background-color: green' if v else '' for v in mask]

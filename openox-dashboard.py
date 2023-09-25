@@ -9,10 +9,27 @@ st.title('OpenOx Dashboard')
 
 from hypoxialab_functions import *
 
-with st.spinner('Loading data from Redcap...'):
-    from nbtopy import *
-
-# set wide by default
+if 'db' not in st.session_state:
+    session = st_load_project('REDCAP_SESSION')
+    session = session.reset_index()
+    manual = st_load_project('REDCAP_MANUAL') 
+    participant = st_load_project('REDCAP_PARTICIPANT')
+    konica = st_load_project('REDCAP_KONICA')
+    manual = reshape_manual(manual)
+    is_streamlit = True
+    with st.spinner('Loading data from Redcap...'):
+        from nbtopy import *
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica']):
+            st.session_state[j] = i
+    st.write('loaded from redcap')
+else:
+    db = st.session_state['db']
+    haskonica = st.session_state['haskonica']
+    hasmonk = st.session_state['hasmonk']
+    hasboth = st.session_state['hasboth']
+    haskonica_notmonk = st.session_state['haskonica_notmonk']
+    hasmonk_notkonica = st.session_state['hasmonk_notkonica']
+    st.write('loaded from session state')
 
 ###### layout ######
 st.subheader('Count of patients')
@@ -29,6 +46,9 @@ two.metric('Has Monk but not Konica', len(hasmonk_notkonica))
 
 st.dataframe(db, use_container_width=True)
 
+st.dataframe(db_style, use_container_width=True)
+
 st.subheader('Data problems')
 st.write('we are missing birthdays for some people, so we cannot calculate age for them')
 st.write('ID# 1132 has an incorrect birthday, listed as this year, which is causing minimum age to be listed as zero')
+st.write('something wrong with BMI calculation for ID# 1144, entered as 10.4')
