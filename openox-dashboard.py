@@ -24,7 +24,7 @@ if 'db' not in st.session_state:
     st.write('loaded from redcap')
 else:
     db = st.session_state['db']
-    db_style = st.session_state['db_style'rr]
+    db_style = st.session_state['db_style']
     haskonica = st.session_state['haskonica']
     hasmonk = st.session_state['hasmonk']
     hasboth = st.session_state['hasboth']
