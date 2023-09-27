@@ -68,13 +68,13 @@ def reshape_manual(df):
 def pt_counts(konica,joined):
     # list of patients with konica data
     haskonica = konica['upi'].unique().tolist()
-    #patients who have monk fingernail data
-    hasmonk = joined[joined['monk_fingernail'].notnull()]['patient_id'].unique().tolist()
-    #patients who have monk fingernail data and konica data
+    #patients who have monk dorsal data
+    hasmonk = joined[joined['monk_dorsal'].notnull()]['patient_id'].unique().tolist()
+    #patients who have monk dorsal data and konica data
     hasboth = list(set(haskonica) & set(hasmonk))
-    #patients who have monk fingernail data but no konica data
+    #patients who have monk dorsal data but no konica data
     hasmonk_notkonica = list(set(hasmonk) - set(haskonica))
-    #patients who have konica data but no monk fingernail data
+    #patients who have konica data but no monk dorsal data
     haskonica_notmonk = list(set(haskonica) - set(hasmonk))
     return haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk
 
@@ -106,9 +106,6 @@ try:
     is_streamlit == True
 except NameError:
     is_streamlit = False
-
-# %%
-is_streamlit
 
 # %%
 if is_streamlit == False:
@@ -159,15 +156,15 @@ db = db.rename(columns={'patient_id':'unique_patients'})
 
 ########## count monk categories
 
-#count those with monk fingernail that is light, medium, or dark
+#count those with monk dorsal that is light, medium, or dark
 for i in [mstlight, mstmedium, mstdark]:
-    # select only those with monk fingernail that is light, medium, or dark
+    # select only those with monk dorsal that is light, medium, or dark
     # groupby device and patient id to get each unique device-patient pair
     # then groupby device to get the count of unique patients per device
-    tdf = joined[joined['monk_fingernail'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
-    #merge the new monk fingernail count data with the dashboard frame
+    tdf = joined[joined['monk_dorsal'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
+    #merge the new monk dorsal count data with the dashboard frame
     db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-    db.rename(columns={'patient_id':'monk_fingernail_'+i[0]}, inplace=True)
+    db.rename(columns={'patient_id':'monk_dorsal_'+i[0]}, inplace=True)
 
 
 ########## count ITA categories
@@ -192,11 +189,32 @@ db = db.merge(stats('bmi',joined), left_on='device', right_index=True, how='oute
 
 db.fillna(0, inplace=True)
 
+#create a dictionary of column names and their descriptions
+column_dict = {'device':'Device',
+                'unique_patients':'Unique Patients',
+                'monk_dorsal_A':'Monk ABC',
+                'monk_dorsal_D':'Monk DEF',
+                'monk_dorsal_H':'Monk HIJ',
+                'ita_any':'Any ITA',
+                'ita>50':'ITA >50',
+                'ita<-45':'ITA <-45',
+                'ita>25':'ITA >25',
+                'ita25to-35':'ITA 25 to -35',
+                'ita<-35':'ITA <-35',
+                'mean_age_at_session':'Mean Age',
+                'min_age_at_session':'Min Age',
+                'max_age_at_session':'Max Age',
+                'age_at_session_range':'Age Range',
+                'mean_bmi':'Mean BMI',
+                'min_bmi':'Min BMI',
+                'max_bmi':'Max BMI',
+                'bmi_range':'BMI Range'}
+
 #style monk columns with threshold of .25
 db_style = (db.style
-        .apply(highlight_value_greater,cols_to_sum=['monk_fingernail_A','monk_fingernail_D','monk_fingernail_H'], threshold=.25, subset=['monk_fingernail_A'])
-        .apply(highlight_value_greater, cols_to_sum=['monk_fingernail_A','monk_fingernail_D','monk_fingernail_H'], threshold=.25, subset=['monk_fingernail_D'])
-        .apply(highlight_value_greater, cols_to_sum=['monk_fingernail_A','monk_fingernail_D','monk_fingernail_H'], threshold=.25, subset=['monk_fingernail_H'])
+        .apply(highlight_value_greater,cols_to_sum=['monk_dorsal_A','monk_dorsal_D','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_A'])
+        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_D','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_D'])
+        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_D','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_H'])
         #now style column ita>25 with threshold of .25
         .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita>25'])
         # same with ita25to-35
@@ -204,16 +222,31 @@ db_style = (db.style
         # and same for ita<-35
         .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita<-35'])
         #highlight if number of patients with ITA<-45 >= 2 
-        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ita<-45']))
+        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ita<-45'])
+        # apply formatting to all columns in column_dict
+        .format(lambda x: f'{x:,.0f}', subset=list(column_dict.keys()))
+)
+db
 
-db_style
+# %%
+session[session['session_date']=='2023-03-03'][['patient_id','monk_dorsal']]
+
+# %%
+joined[joined['patient_id']==976]['device'].unique()
+
+# %%
+# create filter for df joined with device 36 and monk dorsal H
+filter = (joined['device']==36) & (joined['monk_dorsal'].isin(mstdark))
+# create a new dataframe with only those rows
+joined[filter]['patient_id'].value_counts()
+
 
 # %%
 haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
 
 #print lenghts of each list in a loop 
 #list descriptions
-desc = ['patients with konica data', 'patients who have monk fingernail data', 'patients who have monk fingernail data and konica data', 'patients who have monk fingernail data but no konica data', 'patients who have konica data but no monk fingernail data']
+desc = ['patients with konica data', 'patients who have monk dorsal data', 'patients who have monk dorsal data and konica data', 'patients who have monk dorsal data but no konica data', 'patients who have konica data but no monk dorsal data']
 for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
     print(i,len(j))
 

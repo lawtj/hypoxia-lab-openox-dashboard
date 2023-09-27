@@ -18,8 +18,9 @@ if 'db' not in st.session_state:
     manual = reshape_manual(manual)
     is_streamlit = True
     with st.spinner('Loading data from Redcap...'):
+        #run the jupyter notebook
         from nbtopy import *
-        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, db_style],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','db_style']):
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, db_style, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','db_style','column_dict']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:
@@ -30,6 +31,7 @@ else:
     hasboth = st.session_state['hasboth']
     haskonica_notmonk = st.session_state['haskonica_notmonk']
     hasmonk_notkonica = st.session_state['hasmonk_notkonica']
+    column_dict = st.session_state['column_dict']
     st.write('loaded from session state')
 
 ###### layout ######
@@ -47,9 +49,30 @@ two.metric('Has Monk but not Konica', len(hasmonk_notkonica))
 
 #st.dataframe(db, use_container_width=True)
 
-st.dataframe(db_style, use_container_width=True)
+# style database
+def highlight_value_greater(s, cols_to_sum,threshold):
+    sums = db[cols_to_sum].sum(axis=1)
+    mask = s > sums*threshold
+    return ['background-color: green' if v else '' for v in mask]
+
+db.rename(columns=column_dict, inplace=True)
+
+st.write('now using Monk Dorsal')
+st.dataframe(db
+        .style
+        .apply(highlight_value_greater,cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk ABC'])
+        .apply(highlight_value_greater, cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk DEF'])
+        .apply(highlight_value_greater, cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
+        #now style column ita>25 with threshold of .25
+        .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA >25'])
+        # same with ita25to-35
+        .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA 25 to -35'])
+        # and same for ita<-35
+        .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA <-35'])
+        #highlight if number of patients with ITA<-45 >= 2 
+        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ITA <-45'])
+        .format(lambda x: f'{x:,.0f}', subset=list(column_dict.values()))
+        #use table_styles 'selector' to set the ITA headers to a darker shade
+             ,use_container_width=True)
 
 st.subheader('Data problems')
-st.write('we are missing birthdays for some people, so we cannot calculate age for them')
-st.write('ID# 1132 has an incorrect birthday, listed as this year, which is causing minimum age to be listed as zero')
-st.write('something wrong with BMI calculation for ID# 1144, entered as 10.4')
