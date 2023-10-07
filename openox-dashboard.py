@@ -59,7 +59,7 @@ def highlight_value_greater(s, cols_to_sum,threshold):
 db.rename(columns=column_dict, inplace=True)
 
 
-st.write('now using Monk Dorsal')
+st.write('Using Monk Dorsal, and ITA dorsal (median)')
 
 st.subheader('Feature requests')
 st.markdown('''

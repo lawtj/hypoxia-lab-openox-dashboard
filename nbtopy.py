@@ -127,9 +127,11 @@ joined = session.merge(manual, left_on=['patient_id','session_date'], right_on=[
 konica_unique_median = konica.groupby(['date','upi','group']).median(numeric_only=True).reset_index()
 # calculate the ITA
 konica_unique_median['ita'] = konica_unique_median.apply(ita, axis=1)
+# keep only dorsal site
+konica_unique_median_site = konica_unique_median[konica_unique_median['group'].str.contains(r'\WB\W')]
 
 # merge the konica data with the session data
-joined = joined.merge(konica_unique_median, left_on=['patient_id','session_date'], right_on=['upi','date'], how='left')
+joined = joined.merge(konica_unique_median_site, left_on=['patient_id','session_date'], right_on=['upi','date'], how='left')
 
 # add participant metadata
 participant.reset_index(inplace=True)
@@ -179,7 +181,11 @@ itacriteria = [joined['ita']>50, joined['ita']<-45, joined['ita']>25, (joined['i
 criterianames = ['ita>50','ita<-45','ita>25','ita25to-35','ita<-35']
 
 for i,j in zip(itacriteria,criterianames):
-    tdf = joined[i].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()[['device','patient_id']].set_index('device').rename(columns={'patient_id':j})
+    # temp dataframe for each device, counting only the patients who meet the criteria
+    tdf = joined[i].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
+    # select only device and patient id columns, rename patient id to the criteria name
+    tdf = tdf[['device','patient_id']].set_index('device').rename(columns={'patient_id':j})
+    # merge with dashboard frame
     db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 
@@ -215,7 +221,8 @@ column_dict = {'device':'Device',
                 'mean_bmi':'Mean BMI',
                 'min_bmi':'Min BMI',
                 'max_bmi':'Max BMI',
-                'bmi_range':'BMI Range'}
+                'bmi_range':'BMI Range',
+                'priority':'Test priority'}
 
 #style monk columns with threshold of .25
 db_style = (db.style
@@ -236,10 +243,6 @@ db_style = (db.style
 db
 
 # %%
-
-#devices[['manufacturer','model','priority']].merge(db, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
-
-# %%
 haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
 
 #print lenghts of each list in a loop 
@@ -247,6 +250,13 @@ haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(ko
 desc = ['patients with konica data', 'patients who have monk dorsal data', 'patients who have monk dorsal data and konica data', 'patients who have monk dorsal data but no konica data', 'patients who have konica data but no monk dorsal data']
 for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
     print(i,len(j))
+
+# %%
+# how many individual patients and their ITA ranges?
+t1 = konica_unique_median.groupby(by=['upi']).agg({'ita':['min','max']}).reset_index()
+#t1[t1['patient_id']==958].reset_index()
+t1[t1['ita']['min']<-45]
+# t1
 
 # %% [markdown]
 # # style
