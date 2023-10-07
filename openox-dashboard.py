@@ -53,11 +53,19 @@ two.metric('Has Monk but not Konica', len(hasmonk_notkonica))
 def highlight_value_greater(s, cols_to_sum,threshold):
     sums = db[cols_to_sum].sum(axis=1)
     mask = s > sums*threshold
-    return ['background-color: green' if v else '' for v in mask]
+    return ['background-color: #b5e7a0' if v else '' for v in mask]
 
 db.rename(columns=column_dict, inplace=True)
 
+
 st.write('now using Monk Dorsal')
+
+st.subheader('Feature requests')
+st.markdown('''
+* Filters for...?
+* Device names
+            ''')
+
 st.dataframe(db
         .style
         .apply(highlight_value_greater,cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk ABC'])
@@ -70,9 +78,38 @@ st.dataframe(db
         # and same for ita<-35
         .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA <-35'])
         #highlight if number of patients with ITA<-45 >= 2 
-        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ITA <-45'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=2 else "", subset=['ITA <-45'])
         .format(lambda x: f'{x:,.0f}', subset=list(column_dict.values()))
-        #use table_styles 'selector' to set the ITA headers to a darker shade
-             ,use_container_width=True)
+        .background_gradient(subset=['Any ITA'], cmap='RdYlGn')
+             ,column_config={
+                "Unique Patients": st.column_config.ProgressColumn(
+                    "Unique Patients",
+                    help="Number of unique patients",
+                    format="%f",
+                    min_value=0,
+                    max_value=int(db['Unique Patients'].max())),
+                "ITA <-45": st.column_config.ProgressColumn(
+                    "ITA <-45",
+                    help="Number of patients with ITA<-45",
+                    format="%f",
+                    min_value=0,
+                    max_value=2)
+    },use_container_width=True)
 
-st.subheader('Data problems')
+# st.subheader('Data problems')
+# st.markdown(db
+#         .style
+#         .apply(highlight_value_greater,cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk ABC'])
+#         .apply(highlight_value_greater, cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk DEF'])
+#         .apply(highlight_value_greater, cols_to_sum=['Monk ABC','Monk DEF','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
+#         #now style column ita>25 with threshold of .25
+#         .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA >25'])
+#         # same with ita25to-35
+#         .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA 25 to -35'])
+#         # and same for ita<-35
+#         .apply(highlight_value_greater, cols_to_sum=['Any ITA'], threshold=.25, subset=['ITA <-35'])
+#         #highlight if number of patients with ITA<-45 >= 2 
+#         .map(lambda x: 'background-color: #82b74b' if x>=2 else "", subset=['ITA <-45'])
+#         .format(lambda x: f'{x:,.0f}', subset=list(column_dict.values()))
+#         .background_gradient(subset=['Any ITA'], cmap='RdYlGn')
+#         .to_html(), unsafe_allow_html=True)

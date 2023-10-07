@@ -114,6 +114,7 @@ if is_streamlit == False:
     manual = load_project('REDCAP_MANUAL') 
     participant = load_project('REDCAP_PARTICIPANT')
     konica = load_project('REDCAP_KONICA')
+    devices = load_project('REDCAP_DEVICES')
     manual = reshape_manual(manual)
 
 # keep only device and date columns from manual
@@ -187,7 +188,13 @@ for i,j in zip(itacriteria,criterianames):
 db = db.merge(stats('age_at_session',joined), left_on='device', right_index=True, how='outer')
 db = db.merge(stats('bmi',joined), left_on='device', right_index=True, how='outer')
 
+# add device names and priority
+## merge with devices, keeping all devices
+db = devices[['manufacturer','model','priority']].merge(db, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
+
+# fill zeroes
 db.fillna(0, inplace=True)
+
 
 #create a dictionary of column names and their descriptions
 column_dict = {'device':'Device',
@@ -229,17 +236,8 @@ db_style = (db.style
 db
 
 # %%
-session[session['session_date']=='2023-03-03'][['patient_id','monk_dorsal']]
 
-# %%
-joined[joined['patient_id']==976]['device'].unique()
-
-# %%
-# create filter for df joined with device 36 and monk dorsal H
-filter = (joined['device']==36) & (joined['monk_dorsal'].isin(mstdark))
-# create a new dataframe with only those rows
-joined[filter]['patient_id'].value_counts()
-
+#devices[['manufacturer','model','priority']].merge(db, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
 
 # %%
 haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
@@ -249,5 +247,33 @@ haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(ko
 desc = ['patients with konica data', 'patients who have monk dorsal data', 'patients who have monk dorsal data and konica data', 'patients who have monk dorsal data but no konica data', 'patients who have konica data but no monk dorsal data']
 for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
     print(i,len(j))
+
+# %% [markdown]
+# # style
+
+# %%
+df = pd.DataFrame({
+    'cost': [25.99, 97.45, 64.32, 14.78],
+    'grams': [101.89, 20.924, 50.12, 40.015]
+    })
+
+# %%
+# style so there is a border between cost and grams column
+(df.style
+    .set_table_styles([{'selector': 'th.col_heading',
+                        'props': [('border-left', 'solid 1px black')]}])
+    .format({'cost': '${0:,.2f}', 'grams': '{0:,.3f}'})
+)
+
+# %%
+df = pd.DataFrame(np.random.randn(10, 4),
+                  columns=['A', 'B', 'C', 'D'])
+
+df.style.set_table_styles({
+    'A': [{'selector': '',
+           'props': [('color', 'red')]}],
+    'B': [{'selector': 'td',
+           'props': 'color: blue;'}]
+}, overwrite=False)
 
 
