@@ -1,2 +1,2 @@
 pycap
-matplotlibf
+matplotlib
