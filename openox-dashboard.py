@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from redcap import Project
+import matplotlib.pyplot as plt
 st.set_page_config(layout="wide")
 
 st.title('OpenOx Dashboard')
