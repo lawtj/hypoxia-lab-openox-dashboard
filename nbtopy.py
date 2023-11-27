@@ -3,14 +3,14 @@ import pandas as pd
 import numpy as np
 import os
 from redcap import Project
+import streamlit as st
 #from itables import show
 import math
 
-#from hypoxialab_functions import *
+# %% [markdown]
+# Functions
 
 # %%
-# functions
-
 #load all data from redcap
 def load_project(key):
     api_key = os.environ.get(key)
@@ -31,8 +31,8 @@ def reshape_manual(df):
 
     reshaped=pd.DataFrame()
 
-    for index, row in df.iterrows(): #iterate through every patient
-        for i in range(1,11): #iterate through each device in every patient
+    for index, row in df.iterrows(): # iterate through every patient
+        for i in range(1,11): # iterate through each device in every patient
             # create temp df from the row containing only device information
             t2 = row.filter(regex=f'{i}$') 
             t2 = pd.DataFrame(t2)
@@ -97,7 +97,7 @@ def ita(row):
 # style database
 def highlight_value_greater(s, cols_to_sum,threshold):
     sums = db[cols_to_sum].sum(axis=1)
-    mask = s > sums*threshold
+    mask = (s >= sums*threshold) & (sums > 0)
     return ['background-color: green' if v else '' for v in mask]
 
 
@@ -115,6 +115,7 @@ if is_streamlit == False:
     participant = load_project('REDCAP_PARTICIPANT')
     konica = load_project('REDCAP_KONICA')
     devices = load_project('REDCAP_DEVICES')
+    abg = load_project('REDCAP_ABG').reset_index()
     manual = reshape_manual(manual)
 
 # keep only device and date columns from manual
@@ -136,118 +137,22 @@ joined = joined.merge(konica_unique_median_site, left_on=['patient_id','session_
 # add participant metadata
 participant.reset_index(inplace=True)
 participant['subject_id'] = participant['record_id']
-participant.drop(columns=['record_id'], inplace=True)
+participant.drop(columns = ['record_id'], inplace=True)
 joined = joined.merge(participant.reset_index(), left_on='patient_id', right_on='subject_id', how='left')
 
 # calculate age at session
-joined['session_date']=pd.to_datetime(joined['session_date'])
+joined['session_date'] = pd.to_datetime(joined['session_date'])
 joined['dob'] = pd.to_datetime(joined['dob'])
 
-#age at session in years
+# age at session in years
 joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
-
-#define monk skin tone categories
-mstlight = ['A','B','C']
-mstmedium = ['D','E','F','G']
-mstdark = ['H','I','J']
-
-# %%
-#begin creatnig the dashboard frame as db
-# count number of unique patients per device
-db = joined[['device','patient_id']].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
-db = db.rename(columns={'patient_id':'unique_patients'})
-
-########## count monk categories
-
-#count those with monk dorsal that is light, medium, or dark
-for i in [mstlight, mstmedium, mstdark]:
-    # select only those with monk dorsal that is light, medium, or dark
-    # groupby device and patient id to get each unique device-patient pair
-    # then groupby device to get the count of unique patients per device
-    tdf = joined[joined['monk_dorsal'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
-    #merge the new monk dorsal count data with the dashboard frame
-    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-    db.rename(columns={'patient_id':'monk_dorsal_'+i[0]}, inplace=True)
-
-
-########## count ITA categories
-# number of patients with any ITA data
-tdf = joined[joined['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id'].reset_index()
-tdf.rename(columns={'record_id':'ita_any'}, inplace=True)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-
-# ITA criteria: >50, <-45, >25, between 25 to -35, <-35
-itacriteria = [joined['ita']>50, joined['ita']<-45, joined['ita']>25, (joined['ita']<25) & (joined['ita']>-35), joined['ita']<-35]
-criterianames = ['ita>50','ita<-45','ita>25','ita25to-35','ita<-35']
-
-for i,j in zip(itacriteria,criterianames):
-    # temp dataframe for each device, counting only the patients who meet the criteria
-    tdf = joined[i].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
-    # select only device and patient id columns, rename patient id to the criteria name
-    tdf = tdf[['device','patient_id']].set_index('device').rename(columns={'patient_id':j})
-    # merge with dashboard frame
-    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-
-
-#### add age at session
-
-db = db.merge(stats('age_at_session',joined), left_on='device', right_index=True, how='outer')
-db = db.merge(stats('bmi',joined), left_on='device', right_index=True, how='outer')
-
-# add device names and priority
-## merge with devices, keeping all devices
-db = devices[['manufacturer','model','priority']].merge(db, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
-
-# fill zeroes
-db.fillna(0, inplace=True)
-
-
-#create a dictionary of column names and their descriptions
-column_dict = {'device':'Device',
-                'unique_patients':'Unique Patients',
-                'monk_dorsal_A':'Monk ABC',
-                'monk_dorsal_D':'Monk DEF',
-                'monk_dorsal_H':'Monk HIJ',
-                'ita_any':'Any ITA',
-                'ita>50':'ITA >50',
-                'ita<-45':'ITA <-45',
-                'ita>25':'ITA >25',
-                'ita25to-35':'ITA 25 to -35',
-                'ita<-35':'ITA <-35',
-                'mean_age_at_session':'Mean Age',
-                'min_age_at_session':'Min Age',
-                'max_age_at_session':'Max Age',
-                'age_at_session_range':'Age Range',
-                'mean_bmi':'Mean BMI',
-                'min_bmi':'Min BMI',
-                'max_bmi':'Max BMI',
-                'bmi_range':'BMI Range',
-                'priority':'Test priority'}
-
-#style monk columns with threshold of .25
-db_style = (db.style
-        .apply(highlight_value_greater,cols_to_sum=['monk_dorsal_A','monk_dorsal_D','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_A'])
-        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_D','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_D'])
-        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_D','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_H'])
-        #now style column ita>25 with threshold of .25
-        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita>25'])
-        # same with ita25to-35
-        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita25to-35'])
-        # and same for ita<-35
-        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita<-35'])
-        #highlight if number of patients with ITA<-45 >= 2 
-        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ita<-45'])
-        # apply formatting to all columns in column_dict
-        .format(lambda x: f'{x:,.0f}', subset=list(column_dict.keys()))
-)
-db
 
 # %%
 haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
 
 #print lenghts of each list in a loop 
 #list descriptions
-desc = ['patients with konica data', 'patients who have monk dorsal data', 'patients who have monk dorsal data and konica data', 'patients who have monk dorsal data but no konica data', 'patients who have konica data but no monk dorsal data']
+desc = ['subjects with konica data', 'subjects who have monk dorsal data', 'subjects who have monk dorsal data and konica data', 'subjects who have monk dorsal data but no konica data', 'subjects who have konica data but no monk dorsal data']
 for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
     print(i,len(j))
 
@@ -259,31 +164,300 @@ t1[t1['ita']['min']<-45]
 # t1
 
 # %% [markdown]
-# # style
+# Danni's code to update the dashboard
+
+# %% [markdown]
+# Fix the sample number errors in the abg table 
 
 # %%
-df = pd.DataFrame({
-    'cost': [25.99, 97.45, 64.32, 14.78],
-    'grams': [101.89, 20.924, 50.12, 40.015]
-    })
+# 1. Delete rows where sample = 0
+abg = abg[abg['sample'] != 0]
+
+# check the number of rows in abg - 8271 -> 8268
+# abg.shape[0] 
+
+# abg_1.groupby('session').first().reset_index() # number of unique sessions in abg_1 table = 198
+# abg_1.groupby('patient_id').first().reset_index() # number of unique patients in abg_1 table = 74
+
+# 2. Edit the trimmed trailing zeros issue
+abg['time_stamp'] = pd.to_datetime(abg['time_stamp'])
+
+def update_sample(row):
+    if row['sample'] not in [1,2,3]:
+        return row['sample']
+    temp = abg[(abg['session'] == row['session']) & (abg['patient_id'] == row['patient_id']) 
+                          & (abg['sample'] == row['sample'])] 
+    # check if the latest timestamp is the same as the timestamp in the row
+    if (row['time_stamp'] - temp['time_stamp'].min()).seconds > 300:
+        # if yes, return the 'sample number' + '0'
+        return row['sample']*10
+    return row['sample']
+
+# make a copy of abg
+abg_updated = abg.copy()
+abg_updated['sample'] = abg_updated.apply(update_sample, axis=1)
 
 # %%
-# style so there is a border between cost and grams column
-(df.style
-    .set_table_styles([{'selector': 'th.col_heading',
-                        'props': [('border-left', 'solid 1px black')]}])
-    .format({'cost': '${0:,.2f}', 'grams': '{0:,.3f}'})
+# Merge the joined table with the abg_updated table
+abg_updated['date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
+joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'session_date'}), left_on = ['patient_id', 'session_date', 'session'], right_on = ['patient_id', 'session_date','session'], how='left')
+
+# %%
+# print out session 339 in abg and updated abg to view the changes 
+# abg[(abg['session'] == 339) & ((abg['sample'] == 1) | (abg['sample'] == 2) | (abg['sample'] == 3) | (abg['sample'] == 10) | (abg['sample'] == 20) | (abg['sample'] == 30)) ].sort_values(['time_stamp'], ascending=True)
+# abg_updated[(abg_updated['session'] == 339) & ((abg_updated['sample'] == 1) | (abg_updated['sample'] == 2) | (abg_updated['sample'] == 3) | (abg_updated['sample'] == 10) | (abg_updated['sample'] == 20) | (abg_updated['sample'] == 30)) ].sort_values(['time_stamp'], ascending=True)
+
+# %%
+# Check if there are any patient_id that has the same session number -> found (1110, 1100) and (1098,1022)
+abg_2 = abg.copy()
+abg_2 = abg_2.drop_duplicates(subset=['patient_id', 'session'])
+# set col patient_ids to be all patient_ids for each session
+abg_2['patient_id'] = abg_2['patient_id'].astype(str)
+abg_2 = abg_2[['session', 'patient_id']].groupby(['session'])['patient_id'].transform(lambda x: ','.join(x)).reset_index()
+# abg_2[abg_2['patient_id'].str.contains(',')]
+
+# %% [markdown]
+# Dashboard
+
+# %%
+#define monk skin tone categories
+mstlight = ['A','B','C','D']
+mstmedium = ['E','F','G']
+mstdark = ['H','I','J']
+
+# %%
+#begin creating the dashboard frame as db
+
+#count number of unique patients per device
+db = joined_updated[['device','patient_id', 'assigned_sex']].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
+db = db.rename(columns={'patient_id':'Unique Subjects'})
+
+#count assgined_sex
+for i in ['Female','Male']:
+    tdf = joined_updated[joined_updated['assigned_sex'] == i].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
+    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+    db.rename(columns={'patient_id':i}, inplace=True)
+
+########## count monk categories
+
+#count those with monk dorsal that is light, medium, or dark
+for i in [mstlight, mstmedium, mstdark]:
+    # select only those with monk dorsal that is light, medium, or dark
+    # groupby device and patient id to get each unique device-patient pair
+    # then groupby device to get the count of unique patients per device
+    tdf = joined_updated[joined_updated['monk_dorsal'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
+    # merge the new monk dorsal count data with the dashboard frame
+    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+    db.rename(columns={'patient_id':'monk_dorsal_'+i[0]}, inplace=True)
+
+# check if >= 1 in each of the 10 MST categories
+# check the number of unique monk_dorsal per device
+tdf = joined_updated.groupby(by=['device']).nunique()['monk_dorsal'].reset_index()
+tdf.rename(columns={'monk_dorsal':'unique_monk_dorsal'}, inplace=True)
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+########## count ITA categories
+# number of patients with any ITA data
+tdf = joined_updated[joined_updated['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id_x'].reset_index()
+tdf.rename(columns={'record_id_x':'ita_any'}, inplace=True)
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# ITA criteria: >=50, <=-45, >25, between 25 to -35, <-=35
+itacriteria = [(joined_updated['ita']>50) & (joined_updated['monk_dorsal'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_dorsal'].isin(['H','I','J'])), joined_updated['ita']>25, (joined_updated['ita']<25) & (joined_updated['ita']>-35), joined_updated['ita']<=-35]
+criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>25','ita25to-35','ita<=-35']
+
+for i,j in zip(itacriteria,criterianames):
+    # temp dataframe for each device, counting only the patients who meet the criteria
+    tdf = joined_updated[i].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
+    # select only device and patient id columns, rename patient id to the criteria name
+    tdf = tdf[['device','patient_id']].set_index('device').rename(columns={'patient_id':j})
+    # merge with dashboard frame
+    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+########## add age at session
+
+# db = db.merge(stats('age_at_session',joined_updated), left_on='device', right_index=True, how='outer')
+# db = db.merge(stats('bmi',joined_updated), left_on='device', right_index=True, how='outer')
+
+########## add device names and priority
+# merge with devices, keeping all devices
+db = devices[['manufacturer','model','priority']].merge(db, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
+db = db.rename(columns={'manufacturer':'Manufacturer', 'model':'Model'})
+
+########## add abg caculations
+# check average number of samples per session
+abg_updated_max = abg_updated.groupby(['patient_id','session']).max('sample').reset_index()[['patient_id','session','sample']]
+abg_updated_max.rename(columns={'sample':'max_sample'}, inplace=True)
+# merge the joined_updated table with the abg_updated_max table
+joined_updated = joined_updated.merge(abg_updated_max, left_on=['patient_id','session'], right_on=['patient_id','session'], how='left')
+# create a temp dataframe that has the average of 'sample_max' in each device
+tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['max_sample'].reset_index()
+tdf.rename(columns={'max_sample':'avg_sample'}, inplace=True)
+tdf['avg_sample'] = tdf['avg_sample'].round(2)
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# check range of number of samples per session
+joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 17) & (x <= 30) else 0)
+tdf = joined_updated.groupby(by=['device']).min(numeric_only=True)['sample_range'].reset_index()
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# check if >= 90% of the sessions in the same device provide so2 data < 85
+# create a new column called 'so2<85' that is 1 if so2 < 85, 0 if so2 >= 85 in abg_updated table
+abg_updated_copy = abg_updated.copy()
+abg_updated_copy['so2<85'] = abg_updated_copy['so2'].apply(lambda x: 1 if x < 85 else 0)
+# group the abg_updated table by session, and calculate the mean of 'so2<85' in each session
+abg_updated_copy['session'] = abg_updated_copy['session'].astype(str)
+abg_updated_copy = abg_updated_copy.groupby(by=['session']).mean(numeric_only=True)['so2<85'].reset_index()
+# change the so2<85 column to 1 if the column value is greater than 0, 0 otherwise
+abg_updated_copy['so2<85'] = abg_updated_copy['so2<85'].apply(lambda x: 1 if x > 0 else 0)
+# merge the abg_updated table with the joined_updated table
+joined_updated['session'] = joined_updated['session'].astype(str)
+joined_updated = joined_updated.merge(abg_updated_copy, left_on=['session'], right_on=['session'], how='left')
+# group the so2<85 column by device, and calculate the mean of so2<85 in each device
+tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['so2<85'].reset_index()
+tdf['so2<85'] = tdf['so2<85'].apply(lambda x: x*100)
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# check if >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
+abg_updated_copy = abg_updated.copy()
+abg_updated_copy['sao2_70-80'] = abg_updated_copy['so2'].apply(lambda x: 1 if (x >= 70) & (x <= 80) else 0)
+abg_updated_copy['session'] = abg_updated_copy['session'].astype(str)
+abg_updated_copy = abg_updated_copy.groupby(by=['session']).mean(numeric_only=True)['sao2_70-80'].reset_index()
+abg_updated_copy['sao2_70-80'] = abg_updated_copy['sao2_70-80'].apply(lambda x: 1 if x > 0 else 0)
+joined_updated['session'] = joined_updated['session'].astype(str)
+joined_updated = joined_updated.merge(abg_updated_copy, left_on=['session'], right_on=['session'], how='left')
+tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['sao2_70-80'].reset_index()
+tdf['sao2_70-80'] = tdf['sao2_70-80'].apply(lambda x: x*100)
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# %%
+# Check if each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
+# group the joined_updated table by device, create three new columns called 'so2_70-80', 'so2_80-90', 'so2_90-100' that is the count of so2 in each decade
+tdf = joined_updated.groupby(by=['device']).count()['so2'].reset_index()
+tdf.rename(columns={'so2':'total'}, inplace=True)
+tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 70)].groupby(by=['device']).count()['so2'].reset_index()['so2']
+tdf['so2_80-90'] = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] <= 90)].groupby(by=['device']).count()['so2'].reset_index()['so2']
+tdf['so2_90-100'] = joined_updated[joined_updated['so2'] >= 90].groupby(by=['device']).count()['so2'].reset_index()['so2']
+# calculate the percentage of each decade
+tdf['so2_70-80'] = round(tdf['so2_70-80']/tdf['total'], 2) * 100
+tdf['so2_80-90'] = round(tdf['so2_80-90']/tdf['total'], 2) * 100
+tdf['so2_90-100'] = round(tdf['so2_90-100']/tdf['total'], 2) * 100
+tdf = tdf.drop(columns=['total'])
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# %%
+# fill zeroes
+db.fillna(0, inplace=True)
+# drop the assigned_sex column in db
+db = db.drop(columns=['assigned_sex'])
+#create a dictionary of column names and their descriptions
+column_dict = {'device':'Device',
+                'Unique Subjects':'Unique Subjects',
+                'Female': 'Female',
+                'Male': 'Male',
+                'monk_dorsal_A':'Monk ABCD',
+                'monk_dorsal_E':'Monk EFG',
+                'monk_dorsal_H':'Monk HIJ',
+                'unique_monk_dorsal':'Unique Monk',
+                'ita_any':'Any ITA',
+                'ita>=50&MonkABCD':'ITA >= 50 & Monk ABCD',
+                'ita<=-45&MonkHIJ':'ITA <= -45 & Monk HIJ',
+                'ita>25':'ITA > 25',
+                'ita25to-35':'-35 < ITA <= 25',
+                'ita<=-35':'ITA <= -35',
+                'priority':'Test Priority',
+                'avg_sample':'Avg Samples per Session',
+                'sample_range':'17 <= Num Samples per Session <= 30',
+                'so2<85':'%\n of Sessions Provides SaO2 < 85',
+                'sao2_70-80':'%\n of Sessions Provides SaO2 in 70-80',
+                'so2_70-80':'%\n of SaO2 in 70-80',
+                'so2_80-90':'%\n of SaO2 in 80-90',
+                'so2_90-100':'%\n of SaO2 in 90-100'}
+                # 'mean_age_at_session':'Mean Age',
+                # 'min_age_at_session':'Min Age',
+                # 'max_age_at_session':'Max Age',
+                # 'age_at_session_range':'Age Range',
+                # 'mean_bmi':'Mean BMI',
+                # 'min_bmi':'Min BMI',
+                # 'max_bmi':'Max BMI',
+                # 'bmi_range':'BMI Range',
+                # 'priority':'Test priority'}
+
+# style monk columns with threshold of .25
+db_style = (db.style
+        # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
+        .apply(highlight_value_greater,cols_to_sum=['monk_dorsal_A','monk_dorsal_E','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_A'])
+        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_E','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_E'])
+        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_E','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_H'])
+        # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
+        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita>25'])
+        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita25to-35'])
+        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita<=-35'])
+        # Highlight if >=1 subject in category MST 1-4 with ITA >= 50°
+        .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ita>=50&MonkABCD'])
+        # Highlight if Criteria 13: >=2 subjects in category MST 8-10 with ITA <= -45° 
+        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ita<=-45&MonkHIJ'])
+        # Highlight if Criteria 1: Sample size >= 24 (unique patient_id)
+        .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects'])
+        # Highlight if Each sex has approximately 40% percentage (assigned_sex)
+        .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Femlae'])
+        .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Male'])
+        # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
+        .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['avg_sample'])
+        # Highlight if Range of number of data points per participant/session = 17-30 (sao2)
+        .map(lambda x: 'background-color: #b5e7a0' if x==1 else "", subset=['sample_range'])
+        # Highlight if >= 90% of the sessions in the same device provide so2 data < 85 (sao2)
+        .map(lambda x: 'background-color: #b5e7a0' if x>=90 else "", subset=['so2<85'])
+        # Highlight if: >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
+        .map(lambda x: 'background-color: #b5e7a0' if x>=70 else "", subset=['sao2_70-80'])
+        # Highlight if >= 1 in each of the 10 MST categories (monk_dorsal)
+        .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['unique_monk_dorsal'])
+        # Highlight if Each decade between the 70% - 100% saturations contains 33% (+/-5%) of the data points (sao2)
+        # check if x is >= 28 and <= 38, if yes, highlight
+        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38  else "", subset=['so2_70-80'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['so2_80-90'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['so2_90-100'])
+        # apply formatting to all columns in column_dict
+        .format(lambda x: f'{x:,.0f}', subset=list(column_dict.keys()))
 )
 
-# %%
-df = pd.DataFrame(np.random.randn(10, 4),
-                  columns=['A', 'B', 'C', 'D'])
+# %% [markdown]
+# - Criteria 1: Sample size >= 24 (unique patient_id)
 
-df.style.set_table_styles({
-    'A': [{'selector': '',
-           'props': [('color', 'red')]}],
-    'B': [{'selector': 'td',
-           'props': 'color: blue;'}]
-}, overwrite=False)
+# %% [markdown]
+# - Criteria 2: Average of number of data points per participant/session = 24 (+/-4) (sao2)
+
+# %% [markdown]
+# - Criteria 3: Range of number of data points per participant/session in 17-30 (sao2)
+
+# %% [markdown]
+# Criteria 4: Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
+
+# %% [markdown]
+# - Criteria 5: >= 90% participants/sessions provide data points below 85% (sao2)
+
+# %% [markdown]
+# - Criteria 6: >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
+
+# %% [markdown]
+# - Criteria 7: Each sex has approximately 40% percentage (assigned_sex)
+
+# %% [markdown]
+# Criteria 8: Number of repeated participants (patient_id, session)
+
+# %% [markdown]
+# - Criteria 9: >= 1 in each of the 10 MST categories
+
+# %% [markdown]
+# - Criteria 10: >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
+
+# %% [markdown]
+# - Criteria 11: >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
+
+# %% [markdown]
+# - Criteria 12: >=1 subject in category MST 1-4 with ITA >=50°
+
+# %% [markdown]
+# - Criteria 13: >=2 subjects in category MST 8-10 with ITA <=-45°
 
 
