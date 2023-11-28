@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 st.set_page_config(layout="wide")
 
 from hypoxialab_functions import *
-from nbtopy import *
 
 st.title('OpenOx Dashboard')
 
@@ -21,12 +20,12 @@ if 'db' not in st.session_state:
     is_streamlit = True
     with st.spinner('Loading data from Redcap...'):
         #run the jupyter notebook
-        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, db_style, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','db_style','column_dict']):
+        from nbtopy import *
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','db_style','column_dict']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:
     db = st.session_state['db']
-    db_style = st.session_state['db_style']
     haskonica = st.session_state['haskonica']
     hasmonk = st.session_state['hasmonk']
     hasboth = st.session_state['hasboth']

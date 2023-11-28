@@ -6,6 +6,7 @@ from redcap import Project
 import streamlit as st
 #from itables import show
 import math
+import config
 
 # %% [markdown]
 # Functions
@@ -13,7 +14,7 @@ import math
 # %%
 #load all data from redcap
 def load_project(key):
-    api_key = os.environ.get(key)
+    api_key = config.redcap[key]
     api_url = 'https://redcap.ucsf.edu/api/'
     project = Project(api_url, api_key)
     df = project.export_records(format_type='df')
@@ -176,9 +177,6 @@ abg = abg[abg['sample'] != 0]
 # check the number of rows in abg - 8271 -> 8268
 # abg.shape[0] 
 
-# abg_1.groupby('session').first().reset_index() # number of unique sessions in abg_1 table = 198
-# abg_1.groupby('patient_id').first().reset_index() # number of unique patients in abg_1 table = 74
-
 # 2. Edit the trimmed trailing zeros issue
 abg['time_stamp'] = pd.to_datetime(abg['time_stamp'])
 
@@ -187,7 +185,7 @@ def update_sample(row):
         return row['sample']
     temp = abg[(abg['session'] == row['session']) & (abg['patient_id'] == row['patient_id']) 
                           & (abg['sample'] == row['sample'])] 
-    # check if the latest timestamp is the same as the timestamp in the row
+    # check the sample timestamp is at least 5 minutes after the timestamp of the first sample with that label
     if (row['time_stamp'] - temp['time_stamp'].min()).seconds > 300:
         # if yes, return the 'sample number' + '0'
         return row['sample']*10
@@ -210,7 +208,17 @@ joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'sess
 # %%
 # Check if there are any patient_id that has the same session number -> found (1110, 1100) and (1098,1022)
 abg_2 = abg.copy()
-abg_2 = abg_2.drop_duplicates(subset=['patient_id', 'session'])
+#######identify duplicate session/patient_id combinations
+dupes = abg_2.groupby(['patient_id','session']).size().reset_index()['session'].value_counts() # get list of unique session/patient_id combinations, and count how many times each session appears
+dupes = dupes[dupes > 1].index.tolist() # get the session numbers that appear more than once
+dupes = abg_2[abg_2['session'].isin(dupes)][['patient_id','session']] # filter the abg table to only include the session numbers that appear more than once
+if len(dupes) > 0:
+    st.write(dupes)
+else:
+    st.write('No duplicate session/patient_id combinations')
+
+
+####################DANNI-> what does this section do? and do we need it?####################
 # set col patient_ids to be all patient_ids for each session
 abg_2['patient_id'] = abg_2['patient_id'].astype(str)
 abg_2 = abg_2[['session', 'patient_id']].groupby(['session'])['patient_id'].transform(lambda x: ','.join(x)).reset_index()
@@ -372,7 +380,7 @@ column_dict = {'device':'Device',
                 'sao2_70-80':'%\n of Sessions Provides SaO2 in 70-80',
                 'so2_70-80':'%\n of SaO2 in 70-80',
                 'so2_80-90':'%\n of SaO2 in 80-90',
-                'so2_90-100':'%\n of SaO2 in 90-100'}
+                'so2_90-100':'%\n of SaO2 in 90-100'
                 # 'mean_age_at_session':'Mean Age',
                 # 'min_age_at_session':'Min Age',
                 # 'max_age_at_session':'Max Age',
@@ -382,44 +390,7 @@ column_dict = {'device':'Device',
                 # 'max_bmi':'Max BMI',
                 # 'bmi_range':'BMI Range',
                 # 'priority':'Test priority'}
-
-# style monk columns with threshold of .25
-db_style = (db.style
-        # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
-        .apply(highlight_value_greater,cols_to_sum=['monk_dorsal_A','monk_dorsal_E','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_A'])
-        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_E','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_E'])
-        .apply(highlight_value_greater, cols_to_sum=['monk_dorsal_A','monk_dorsal_E','monk_dorsal_H'], threshold=.25, subset=['monk_dorsal_H'])
-        # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
-        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita>25'])
-        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita25to-35'])
-        .apply(highlight_value_greater, cols_to_sum=['ita_any'], threshold=.25, subset=['ita<=-35'])
-        # Highlight if >=1 subject in category MST 1-4 with ITA >= 50°
-        .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ita>=50&MonkABCD'])
-        # Highlight if Criteria 13: >=2 subjects in category MST 8-10 with ITA <= -45° 
-        .map(lambda x: 'background-color: green' if x>=2 else "", subset=['ita<=-45&MonkHIJ'])
-        # Highlight if Criteria 1: Sample size >= 24 (unique patient_id)
-        .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects'])
-        # Highlight if Each sex has approximately 40% percentage (assigned_sex)
-        .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Femlae'])
-        .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Male'])
-        # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
-        .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['avg_sample'])
-        # Highlight if Range of number of data points per participant/session = 17-30 (sao2)
-        .map(lambda x: 'background-color: #b5e7a0' if x==1 else "", subset=['sample_range'])
-        # Highlight if >= 90% of the sessions in the same device provide so2 data < 85 (sao2)
-        .map(lambda x: 'background-color: #b5e7a0' if x>=90 else "", subset=['so2<85'])
-        # Highlight if: >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
-        .map(lambda x: 'background-color: #b5e7a0' if x>=70 else "", subset=['sao2_70-80'])
-        # Highlight if >= 1 in each of the 10 MST categories (monk_dorsal)
-        .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['unique_monk_dorsal'])
-        # Highlight if Each decade between the 70% - 100% saturations contains 33% (+/-5%) of the data points (sao2)
-        # check if x is >= 28 and <= 38, if yes, highlight
-        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38  else "", subset=['so2_70-80'])
-        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['so2_80-90'])
-        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['so2_90-100'])
-        # apply formatting to all columns in column_dict
-        .format(lambda x: f'{x:,.0f}', subset=list(column_dict.keys()))
-)
+                }
 
 # %% [markdown]
 # - Criteria 1: Sample size >= 24 (unique patient_id)
