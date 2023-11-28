@@ -2,3 +2,5 @@
 *.ipynb
 .env
 *.pyc
+*.csv
+config.py
