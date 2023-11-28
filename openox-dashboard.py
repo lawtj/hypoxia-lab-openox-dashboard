@@ -11,17 +11,11 @@ from hypoxialab_functions import *
 st.title('OpenOx Dashboard')
 
 if 'db' not in st.session_state:
-    session = st_load_project('REDCAP_SESSION')
-    session = session.reset_index()
-    manual = st_load_project('REDCAP_MANUAL') 
-    participant = st_load_project('REDCAP_PARTICIPANT')
-    konica = st_load_project('REDCAP_KONICA')
-    manual = reshape_manual(manual)
-    is_streamlit = True
+    print('db is not in session state')
     with st.spinner('Loading data from Redcap...'):
         #run the jupyter notebook
         from nbtopy import *
-        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','db_style','column_dict']):
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:

@@ -103,21 +103,15 @@ def highlight_value_greater(s, cols_to_sum,threshold):
 
 
 # %%
-try:
-    is_streamlit == True
-except NameError:
-    is_streamlit = False
 
-# %%
-if is_streamlit == False:
-    session = load_project('REDCAP_SESSION')
-    session = session.reset_index()
-    manual = load_project('REDCAP_MANUAL') 
-    participant = load_project('REDCAP_PARTICIPANT')
-    konica = load_project('REDCAP_KONICA')
-    devices = load_project('REDCAP_DEVICES')
-    abg = load_project('REDCAP_ABG').reset_index()
-    manual = reshape_manual(manual)
+session = st_load_project('REDCAP_SESSION')
+session = session.reset_index()
+manual = st_load_project('REDCAP_MANUAL') 
+participant = st_load_project('REDCAP_PARTICIPANT')
+konica = st_load_project('REDCAP_KONICA')
+devices = st_load_project('REDCAP_DEVICES')
+abg = st_load_project('REDCAP_ABG').reset_index()
+manual = reshape_manual(manual)
 
 # keep only device and date columns from manual
 manual = manual[['patient_id','device','date']]
