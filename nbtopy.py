@@ -6,7 +6,6 @@ from redcap import Project
 import streamlit as st
 #from itables import show
 import math
-import config
 
 # %% [markdown]
 # Functions
