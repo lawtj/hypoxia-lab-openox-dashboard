@@ -88,6 +88,19 @@ def stats(var, joined):
 def ita(row):
     return (np.arctan((row['lab_l']-50)/row['lab_b'])) * (180/math.pi)
 
+def monkcolor(row):
+    if pd.notna(row['group']):
+        if 'Arm' in row['group']:
+            return row['monk_upper_arm']
+        elif 'Dorsal' in row['group']:
+            return row['monk_dorsal']
+        elif 'Forehead' in row['group']:
+            return row['monk_forehead']
+        elif 'Palmar' in row['group']:
+            return row['monk_palmar']
+        elif 'Fingernail' in row['group']:
+            return row['monk_fingernail']
+        
 # # style database
 # def highlight_value_greater(s, cols_to_sum,threshold):
 #     sums = db[cols_to_sum].sum(axis=1)

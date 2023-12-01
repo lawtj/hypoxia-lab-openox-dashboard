@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 st.set_page_config(layout="wide")
 
 from hypoxialab_functions import *
+import create_figure
 
 st.title('OpenOx Dashboard')
 
@@ -105,7 +106,29 @@ st.dataframe(db
         # Highlight if >=2 subjects in category MST 8-10 with ITA <= -45° 
         .map(lambda x: 'background-color: #b5e7a0' if x>=2 else "", subset=['ITA <= -45 & Monk HIJ'])
 
+        # Highlight if the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively is > 24
+        .map(lambda x: 'background-color: #b5e7a0' if x>24 else "", subset=['# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'])
+        
         # .format(lambda x: f'{x:,.2f}', subset=list(column_dict.values())),
         .format(lambda x: f'{x:,.0f}', subset=list(column_dict.values())),
 
         height = (23 + 1) * 35 + 3)
+
+########### Visualize the skin color distribution of the lab by both ITA and Monk #####################
+
+# load tables from redcap
+konica = load_project('REDCAP_KONICA').reset_index()
+session = load_project('REDCAP_SESSION').reset_index()
+
+# %%
+scatter_fig, hist_fig = create_figure.create_figures(konica, session, fig_size=(6, 5))
+
+# resize the figures to be smaller
+
+st.header("Scatter Plot of MST vs ITA:")
+# Display the scatter plot
+st.pyplot(scatter_fig)
+
+st.header("Histogram of ITA Distribution:")
+# Display the histogram
+st.pyplot(hist_fig)
