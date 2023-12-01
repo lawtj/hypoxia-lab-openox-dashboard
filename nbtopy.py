@@ -330,7 +330,6 @@ tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['sao2_70-80'
 tdf['sao2_70-80'] = tdf['sao2_70-80'].apply(lambda x: x*100)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
-# %%
 # Check if each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
 # group the joined_updated table by device, create three new columns called 'so2_70-80', 'so2_80-90', 'so2_90-100' that is the count of so2 in each decade
 tdf = joined_updated.groupby(by=['device']).count()['so2'].reset_index()
@@ -344,6 +343,28 @@ tdf['so2_80-90'] = round(tdf['so2_80-90']/tdf['total'], 2) * 100
 tdf['so2_90-100'] = round(tdf['so2_90-100']/tdf['total'], 2) * 100
 tdf = tdf.drop(columns=['total'])
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# %%
+# group by device and count the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively
+tdf = joined_updated.groupby(by=['device','session']).count()['so2'].reset_index()
+tdf.rename(columns={'so2':'total'}, inplace=True)
+tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 70)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
+tdf['so2_80-90'] = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] <= 90)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
+tdf['so2_90-100'] = joined_updated[joined_updated['so2'] >= 90].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
+# calculate the percentage of each decade
+tdf['so2_70-80'] = round(tdf['so2_70-80']/tdf['total'], 2) * 100
+tdf['so2_80-90'] = round(tdf['so2_80-90']/tdf['total'], 2) * 100
+tdf['so2_90-100'] = round(tdf['so2_90-100']/tdf['total'], 2) * 100
+tdf = tdf.drop(columns=['total'])
+# for each row in tdf, drop the row if any of the three decades is less than 25
+tdf = tdf[(tdf['so2_70-80'] >= 25) & (tdf['so2_80-90'] >= 25) & (tdf['so2_90-100'] >= 25)]
+# group by device and count the number of sessions in tdf
+tdf = tdf.groupby(by=['device']).count()['session'].reset_index()
+# rename session to '# of sessions with >=25% of so2 in the 3 decades' in tdf
+tdf.rename(columns={'session':'session_count'}, inplace=True)
+# merge db with tdf, if there is no session with >=25% of so2 in the 3 decades, fill the value with 0
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+# db
 
 # %%
 # fill zeroes
@@ -372,7 +393,8 @@ column_dict = {'device':'Device',
                 'sao2_70-80':'%\n of Sessions Provides SaO2 in 70-80',
                 'so2_70-80':'%\n of SaO2 in 70-80',
                 'so2_80-90':'%\n of SaO2 in 80-90',
-                'so2_90-100':'%\n of SaO2 in 90-100'}
+                'so2_90-100':'%\n of SaO2 in 90-100',
+                'session_count':'# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'}
                 # 'mean_age_at_session':'Mean Age',
                 # 'min_age_at_session':'Min Age',
                 # 'max_age_at_session':'Max Age',
@@ -417,6 +439,8 @@ db_style = (db.style
         .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38  else "", subset=['so2_70-80'])
         .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['so2_80-90'])
         .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['so2_90-100'])
+        # Highlight if the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively is > 24
+        .map(lambda x: 'background-color: #b5e7a0' if x>24 else "", subset=['session_count'])
         # apply formatting to all columns in column_dict
         .format(lambda x: f'{x:,.0f}', subset=list(column_dict.keys()))
 )
