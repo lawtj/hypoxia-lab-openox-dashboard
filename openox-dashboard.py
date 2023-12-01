@@ -4,6 +4,7 @@ import numpy as np
 import os
 from redcap import Project
 import matplotlib.pyplot as plt
+import plotly.express as px
 st.set_page_config(layout="wide")
 
 from hypoxialab_functions import *
@@ -16,7 +17,7 @@ if 'db' not in st.session_state:
     with st.spinner('Loading data from Redcap...'):
         #run the jupyter notebook
         from nbtopy import *
-        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict']):
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict, konica, session, joined],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict', 'konica','session', 'joined']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:
@@ -27,6 +28,9 @@ else:
     haskonica_notmonk = st.session_state['haskonica_notmonk']
     hasmonk_notkonica = st.session_state['hasmonk_notkonica']
     column_dict = st.session_state['column_dict']
+    konica = st.session_state['konica']
+    session = st.session_state['session']
+    joined = st.session_state['joined']
     st.write('loaded from session state')
 
 
@@ -115,20 +119,44 @@ st.dataframe(db
         height = (23 + 1) * 35 + 3)
 
 ########### Visualize the skin color distribution of the lab by both ITA and Monk #####################
+mscolors = {'A': '#f7ede4', 'B': '#f3e7db', 'C': '#f6ead0', 'D': '#ead9bb', 'E': '#d7bd96', 'F': '#9f7d54', 'G': '#815d44', 'H': '#604234', 'I': '#3a312a', 'J': '#2a2420'}
+
+###### Danni -> I only did 'monk_dorsal' here because the 'joined' df that was created in nbtopy doesn't have the 'monk' column yet. 
+# so that would be the next step to make it complete
+# but you get the idea.
+monk_scatter = (px.scatter(joined, x='monk_dorsal', y='ita', 
+                           color='monk_dorsal', 
+                           title='Monk vs ITA by Monk Color',
+                           color_discrete_map=mscolors)
+                .update_xaxes(title_text='Monk')
+                .update_yaxes(title_text='ITA')
+                )
+
+ita_hist = px.histogram(joined, x='ita', title='ITA Distribution by Monk Color',
+                        color = 'monk_dorsal', # I don't know why it's not mapping correctly to colors but we can work on this later...
+                        color_discrete_map=mscolors).update_xaxes(title_text='ITA').update_yaxes(title_text='Count')
+
+one, two = st.columns(2)
+
+with one:
+    st.plotly_chart(ita_hist)
+
+with two:
+    st.plotly_chart(monk_scatter)
 
 # load tables from redcap
-konica = load_project('REDCAP_KONICA').reset_index()
-session = load_project('REDCAP_SESSION').reset_index()
+##### remember that streamlit already has this loaded in the session state so there is no need to load it again
+# konica = load_project('REDCAP_KONICA').reset_index()
+# session = load_project('REDCAP_SESSION').reset_index()
 
-# %%
-scatter_fig, hist_fig = create_figure.create_figures(konica, session, fig_size=(6, 5))
+# scatter_fig, hist_fig = create_figure.create_figures(konica, session, fig_size=(6, 5))
 
-# resize the figures to be smaller
+# # resize the figures to be smaller
 
-st.header("Scatter Plot of MST vs ITA:")
-# Display the scatter plot
-st.pyplot(scatter_fig)
+# st.header("Scatter Plot of MST vs ITA:")
+# # Display the scatter plot
+# st.pyplot(scatter_fig)
 
-st.header("Histogram of ITA Distribution:")
-# Display the histogram
-st.pyplot(hist_fig)
+# st.header("Histogram of ITA Distribution:")
+# # Display the histogram
+# st.pyplot(hist_fig)

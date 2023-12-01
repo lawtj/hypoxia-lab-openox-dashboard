@@ -209,13 +209,6 @@ else:
     st.write('No duplicate session/patient_id combinations')
 
 
-####################DANNI-> what does this section do? and do we need it?####################
-####################TYLER -> This is just me trying to check if there is any more error with diff patient_id having the same session ID. We can delete this as the issue is fixed. ########################
-# set col patient_ids to be all patient_ids for each session
-abg_2['patient_id'] = abg_2['patient_id'].astype(str)
-abg_2 = abg_2[['session', 'patient_id']].groupby(['session'])['patient_id'].transform(lambda x: ','.join(x)).reset_index()
-# abg_2[abg_2['patient_id'].str.contains(',')]
-
 # %% [markdown]
 # Dashboard
 
