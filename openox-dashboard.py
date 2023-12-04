@@ -141,7 +141,7 @@ joined_konica_session = create_figure.joined_konica_session(session, konica)
 
 monk_scatter = create_figure.monk_scatter(joined_konica_session, mscolors)
 
-monk_scatter2 = (px.scatter(joined_konica_session, x='monk', y='ita', 
+monk_scatter2 = (px.scatter(joined_konica_session.sort_values(by='monk'), x='monk', y='ita', 
                            color='monk', 
                            title='Monk vs ITA by Monk Color',
                            color_discrete_map=mscolors,
