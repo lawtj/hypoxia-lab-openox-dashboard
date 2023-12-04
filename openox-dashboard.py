@@ -118,23 +118,38 @@ st.dataframe(db
 
         height = (23 + 1) * 35 + 3)
 
+
 ########### Visualize the skin color distribution of the lab by both ITA and Monk #####################
-mscolors = {'A': '#f7ede4', 'B': '#f3e7db', 'C': '#f6ead0', 'D': '#ead9bb', 'E': '#d7bd96', 'F': '#9f7d54', 'G': '#815d44', 'H': '#604234', 'I': '#3a312a', 'J': '#2a2420'}
+mscolors = {'A': '#f7ede4', 
+            'B': '#f3e7db', 
+            'C': '#f6ead0', 
+            'D': '#ead9bb', 
+            'E': '#d7bd96', 
+            'F': '#9f7d54', 
+            'G': '#815d44', 
+            'H': '#604234', 
+            'I': '#3a312a', 
+            'J': '#2a2420'}
 
 ###### Danni -> I only did 'monk_dorsal' here because the 'joined' df that was created in nbtopy doesn't have the 'monk' column yet. 
 # so that would be the next step to make it complete
 # but you get the idea.
-monk_scatter = (px.scatter(joined, x='monk_dorsal', y='ita', 
-                           color='monk_dorsal', 
-                           title='Monk vs ITA by Monk Color',
-                           color_discrete_map=mscolors)
-                .update_xaxes(title_text='Monk')
-                .update_yaxes(title_text='ITA')
-                )
 
-ita_hist = px.histogram(joined, x='ita', title='ITA Distribution by Monk Color',
-                        color = 'monk_dorsal', # I don't know why it's not mapping correctly to colors but we can work on this later...
-                        color_discrete_map=mscolors).update_xaxes(title_text='ITA').update_yaxes(title_text='Count')
+# monk_scatter = (px.scatter(joined, x='monk_dorsal', y='ita', 
+#                            color='monk_dorsal', 
+#                            title='Monk vs ITA by Monk Color',
+#                            color_discrete_map=mscolors)
+#                 .update_xaxes(title_text='Monk')
+#                 .update_yaxes(title_text='ITA')
+#                 )
+
+monk_scatter = create_figure.monk_scatter(konica, session)
+
+# ita_hist = px.histogram(joined, x='ita', title='ITA Distribution by Monk Color',
+#                         color = 'monk_dorsal', # I don't know why it's not mapping correctly to colors but we can work on this later...
+#                         color_discrete_map=mscolors).update_xaxes(title_text='ITA').update_yaxes(title_text='Count')
+
+ita_hist = create_figure.ita_hist(konica, session)
 
 one, two = st.columns(2)
 
