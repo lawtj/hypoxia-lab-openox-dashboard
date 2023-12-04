@@ -8,6 +8,7 @@ import plotly.express as px
 st.set_page_config(layout="wide")
 
 from hypoxialab_functions import *
+import hypoxialab_functions
 import create_figure
 
 st.title('OpenOx Dashboard')
@@ -131,25 +132,27 @@ mscolors = {'A': '#f7ede4',
             'I': '#3a312a', 
             'J': '#2a2420'}
 
-###### Danni -> I only did 'monk_dorsal' here because the 'joined' df that was created in nbtopy doesn't have the 'monk' column yet. 
-# so that would be the next step to make it complete
-# but you get the idea.
 
-# monk_scatter = (px.scatter(joined, x='monk_dorsal', y='ita', 
-#                            color='monk_dorsal', 
-#                            title='Monk vs ITA by Monk Color',
-#                            color_discrete_map=mscolors)
-#                 .update_xaxes(title_text='Monk')
-#                 .update_yaxes(title_text='ITA')
-#                 )
 
-monk_scatter = create_figure.monk_scatter(konica, session)
+import plotly.graph_objects as go
 
-# ita_hist = px.histogram(joined, x='ita', title='ITA Distribution by Monk Color',
-#                         color = 'monk_dorsal', # I don't know why it's not mapping correctly to colors but we can work on this later...
-#                         color_discrete_map=mscolors).update_xaxes(title_text='ITA').update_yaxes(title_text='Count')
+joined_konica_session = create_figure.joined_konica_session(session, konica)
 
-ita_hist = create_figure.ita_hist(konica, session)
+
+monk_scatter = create_figure.monk_scatter(joined_konica_session, mscolors)
+
+monk_scatter2 = (px.scatter(joined_konica_session, x='monk', y='ita', 
+                           color='monk', 
+                           title='Monk vs ITA by Monk Color',
+                           color_discrete_map=mscolors,
+                           )
+                .update_xaxes(title_text='Monk')
+                .update_yaxes(title_text='ITA', range=[-80, 80], dtick=20)
+                .update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
+)
+monk_scatter2.add_trace(go.Scatter(x=['J'], y=[np.nan], name='J')) # if you insist on including the blank 'J' column :)
+
+ita_hist = create_figure.ita_hist(joined_konica_session, mscolors)
 
 one, two = st.columns(2)
 
@@ -158,20 +161,4 @@ with one:
 
 with two:
     st.plotly_chart(monk_scatter)
-
-# load tables from redcap
-##### remember that streamlit already has this loaded in the session state so there is no need to load it again
-# konica = load_project('REDCAP_KONICA').reset_index()
-# session = load_project('REDCAP_SESSION').reset_index()
-
-# scatter_fig, hist_fig = create_figure.create_figures(konica, session, fig_size=(6, 5))
-
-# # resize the figures to be smaller
-
-# st.header("Scatter Plot of MST vs ITA:")
-# # Display the scatter plot
-# st.pyplot(scatter_fig)
-
-# st.header("Histogram of ITA Distribution:")
-# # Display the histogram
-# st.pyplot(hist_fig)
+    st.plotly_chart(monk_scatter2)
