@@ -133,32 +133,18 @@ mscolors = {'A': '#f7ede4',
             'J': '#2a2420'}
 
 
-
-import plotly.graph_objects as go
+# import plotly.graph_objects as go
 
 joined_konica_session = create_figure.joined_konica_session(session, konica)
 
-
 monk_scatter = create_figure.monk_scatter(joined_konica_session, mscolors)
-
-monk_scatter2 = (px.scatter(joined_konica_session.sort_values(by='monk'), x='monk', y='ita', 
-                           color='monk', 
-                           title='Monk vs ITA by Monk Color',
-                           color_discrete_map=mscolors,
-                           )
-                .update_xaxes(title_text='Monk')
-                .update_yaxes(title_text='ITA', range=[-80, 80], dtick=20)
-                .update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
-)
-monk_scatter2.add_trace(go.Scatter(x=['J'], y=[np.nan], name='J')) # if you insist on including the blank 'J' column :)
 
 ita_hist = create_figure.ita_hist(joined_konica_session, mscolors)
 
 one, two = st.columns(2)
 
 with one:
-    st.plotly_chart(ita_hist)
+    st.plotly_chart(monk_scatter)
 
 with two:
-    st.plotly_chart(monk_scatter)
-    st.plotly_chart(monk_scatter2)
+    st.plotly_chart(ita_hist)
