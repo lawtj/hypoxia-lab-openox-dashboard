@@ -4,9 +4,11 @@ import numpy as np
 import os
 from redcap import Project
 import matplotlib.pyplot as plt
+import plotly.express as px
 st.set_page_config(layout="wide")
 
 from hypoxialab_functions import *
+import hypoxialab_functions
 import create_figure
 
 st.title('OpenOx Dashboard')
@@ -16,7 +18,7 @@ if 'db' not in st.session_state:
     with st.spinner('Loading data from Redcap...'):
         #run the jupyter notebook
         from nbtopy import *
-        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict']):
+        for i,j in zip([db, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict, konica, session, joined],['db', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict', 'konica','session', 'joined']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:
@@ -27,6 +29,9 @@ else:
     haskonica_notmonk = st.session_state['haskonica_notmonk']
     hasmonk_notkonica = st.session_state['hasmonk_notkonica']
     column_dict = st.session_state['column_dict']
+    konica = st.session_state['konica']
+    session = st.session_state['session']
+    joined = st.session_state['joined']
     st.write('loaded from session state')
 
 
@@ -114,21 +119,32 @@ st.dataframe(db
 
         height = (23 + 1) * 35 + 3)
 
+
 ########### Visualize the skin color distribution of the lab by both ITA and Monk #####################
+mscolors = {'A': '#f7ede4', 
+            'B': '#f3e7db', 
+            'C': '#f6ead0', 
+            'D': '#ead9bb', 
+            'E': '#d7bd96', 
+            'F': '#9f7d54', 
+            'G': '#815d44', 
+            'H': '#604234', 
+            'I': '#3a312a', 
+            'J': '#2a2420'}
 
-# load tables from redcap
-konica = load_project('REDCAP_KONICA').reset_index()
-session = load_project('REDCAP_SESSION').reset_index()
 
-# %%
-scatter_fig, hist_fig = create_figure.create_figures(konica, session, fig_size=(6, 5))
+# import plotly.graph_objects as go
 
-# resize the figures to be smaller
+joined_konica_session = create_figure.joined_konica_session(session, konica)
 
-st.header("Scatter Plot of MST vs ITA:")
-# Display the scatter plot
-st.pyplot(scatter_fig)
+monk_scatter = create_figure.monk_scatter(joined_konica_session, mscolors)
 
-st.header("Histogram of ITA Distribution:")
-# Display the histogram
-st.pyplot(hist_fig)
+ita_hist = create_figure.ita_hist(joined_konica_session, mscolors)
+
+one, two = st.columns(2)
+
+with one:
+    st.plotly_chart(monk_scatter)
+
+with two:
+    st.plotly_chart(ita_hist)
