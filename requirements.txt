@@ -1,3 +1,4 @@
 pycap
 matplotlib
 seaborn
+plotly
