@@ -251,9 +251,9 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 ########## count ITA categories
 # number of patients with any ITA data and monk dorsal data
-tdf = joined_updated[joined_updated['monk_dorsal'].notnull() & joined_updated['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id_x'].reset_index()
-tdf.rename(columns={'record_id_x':'ita_monk_any'}, inplace=True)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+# tdf = joined_updated[joined_updated['monk_dorsal'].notnull() & joined_updated['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id_x'].reset_index()
+# tdf.rename(columns={'record_id_x':'ita_monk_any'}, inplace=True)
+# db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # ITA criteria: >=50, <=-45, >25, between 25 to -35, <-=35
 itacriteria = [(joined_updated['ita']>50) & (joined_updated['monk_dorsal'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_dorsal'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_dorsal'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_dorsal'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_dorsal'].isin(['H','I','J']))]
@@ -372,7 +372,7 @@ column_dict = {'device':'Device',
                 'monk_dorsal_E':'Monk EFG',
                 'monk_dorsal_H':'Monk HIJ',
                 'unique_monk_dorsal':'Unique Monk',
-                'ita_monk_any':'Any ITA & Monk',
+                # 'ita_monk_any':'Any ITA & Monk',
                 'ita>=50&MonkABCD':'ITA >= 50 & Monk ABCD',
                 'ita<=-45&MonkHIJ':'ITA <= -45 & Monk HIJ',
                 'ita>25&MonkABCD':'ITA > 25 & Monk ABCD',
