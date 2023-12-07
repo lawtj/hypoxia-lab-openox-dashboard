@@ -58,7 +58,7 @@ def highlight_value_greater(s, cols_to_sum, threshold):
     mask = (s >= sums*threshold) & (sums > 0)
     return ['background-color: #b5e7a0' if v else '' for v in mask]
 
-st.write('Using Monk Dorsal, and ITA dorsal (median)')
+st.write('Using Monk forehead. Using ITA dorsal (median) if device is fingertip.')
 
 st.subheader('Feature requests')
 st.markdown('''
@@ -92,7 +92,7 @@ st.dataframe(db
         .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Female'])
         .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Male'])
 
-        # Highlight if >= 1 in each of the 10 MST categories (monk_dorsal)
+        # Highlight if >= 1 in each of the 10 MST categories (monk_forehead)
         .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk'])
 
         # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
