@@ -69,13 +69,13 @@ def reshape_manual(df):
 def pt_counts(konica,joined):
     # list of patients with konica data
     haskonica = konica['upi'].unique().tolist()
-    #patients who have monk dorsal data
-    hasmonk = joined[joined['monk_dorsal'].notnull()]['patient_id'].unique().tolist()
-    #patients who have monk dorsal data and konica data
+    #patients who have monk forehead data
+    hasmonk = joined[joined['monk_forehead'].notnull()]['patient_id'].unique().tolist()
+    #patients who have monk forehead data and konica data
     hasboth = list(set(haskonica) & set(hasmonk))
-    #patients who have monk dorsal data but no konica data
+    #patients who have monk forehead data but no konica data
     hasmonk_notkonica = list(set(hasmonk) - set(haskonica))
-    #patients who have konica data but no monk dorsal data
+    #patients who have konica data but no monk forehead data
     haskonica_notmonk = list(set(haskonica) - set(hasmonk))
     return haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk
 
@@ -147,7 +147,7 @@ haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(ko
 
 #print lenghts of each list in a loop 
 #list descriptions
-desc = ['subjects with konica data', 'subjects who have monk dorsal data', 'subjects who have monk dorsal data and konica data', 'subjects who have monk dorsal data but no konica data', 'subjects who have konica data but no monk dorsal data']
+desc = ['subjects with konica data', 'subjects who have monk forehead data', 'subjects who have monk forehead data and konica data', 'subjects who have monk forehead data but no konica data', 'subjects who have konica data but no monk forehead data']
 for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
     print(i,len(j))
 
@@ -233,30 +233,30 @@ for i in ['Female','Male']:
 
 ########## count monk categories
 
-#count those with monk dorsal that is light, medium, or dark
+#count those with monk forehead that is light, medium, or dark
 for i in [mstlight, mstmedium, mstdark]:
-    # select only those with monk dorsal that is light, medium, or dark
+    # select only those with monk forehead that is light, medium, or dark
     # groupby device and patient id to get each unique device-patient pair
     # then groupby device to get the count of unique patients per device
-    tdf = joined_updated[joined_updated['monk_dorsal'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
-    # merge the new monk dorsal count data with the dashboard frame
+    tdf = joined_updated[joined_updated['monk_forehead'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
+    # merge the new monk forehead count data with the dashboard frame
     db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-    db.rename(columns={'patient_id':'monk_dorsal_'+i[0]}, inplace=True)
+    db.rename(columns={'patient_id':'monk_forehead_'+i[0]}, inplace=True)
 
 # check if >= 1 in each of the 10 MST categories
-# check the number of unique monk_dorsal per device
-tdf = joined_updated.groupby(by=['device']).nunique()['monk_dorsal'].reset_index()
-tdf.rename(columns={'monk_dorsal':'unique_monk_dorsal'}, inplace=True)
+# check the number of unique monk_forehead per device
+tdf = joined_updated.groupby(by=['device']).nunique()['monk_forehead'].reset_index()
+tdf.rename(columns={'monk_forehead':'unique_monk_forehead'}, inplace=True)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 ########## count ITA categories
-# number of patients with any ITA data and monk dorsal data
-# tdf = joined_updated[joined_updated['monk_dorsal'].notnull() & joined_updated['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id_x'].reset_index()
+# number of patients with any ITA data and monk forehead data
+# tdf = joined_updated[joined_updated['monk_forehead'].notnull() & joined_updated['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id_x'].reset_index()
 # tdf.rename(columns={'record_id_x':'ita_monk_any'}, inplace=True)
 # db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # ITA criteria: >=50, <=-45, >25, between 25 to -35, <-=35
-itacriteria = [(joined_updated['ita']>50) & (joined_updated['monk_dorsal'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_dorsal'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_dorsal'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_dorsal'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_dorsal'].isin(['H','I','J']))]
+itacriteria = [(joined_updated['ita']>50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
 criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>25&MonkABCD','ita25to-35&MonkEFG','ita<=-35&MonkHIJ']
 
 for i,j in zip(itacriteria,criterianames):
@@ -368,10 +368,10 @@ column_dict = {'device':'Device',
                 'Unique Subjects':'Unique Subjects',
                 'Female': 'Female',
                 'Male': 'Male',
-                'monk_dorsal_A':'Monk ABCD',
-                'monk_dorsal_E':'Monk EFG',
-                'monk_dorsal_H':'Monk HIJ',
-                'unique_monk_dorsal':'Unique Monk',
+                'monk_forehead_A':'Monk ABCD',
+                'monk_forehead_E':'Monk EFG',
+                'monk_forehead_H':'Monk HIJ',
+                'unique_monk_forehead':'Unique Monk',
                 # 'ita_monk_any':'Any ITA & Monk',
                 'ita>=50&MonkABCD':'ITA >= 50 & Monk ABCD',
                 'ita<=-45&MonkHIJ':'ITA <= -45 & Monk HIJ',
