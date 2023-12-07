@@ -101,9 +101,9 @@ st.dataframe(db
         .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
         
         # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
-        .apply(highlight_value_greater, cols_to_sum=['Any ITA & Monk'], threshold=.25, subset=['ITA > 25 & Monk ABCD'])
-        .apply(highlight_value_greater, cols_to_sum=['Any ITA & Monk'], threshold=.25, subset=['-35 < ITA <= 25 & Monk EFG'])
-        .apply(highlight_value_greater, cols_to_sum=['Any ITA & Monk'], threshold=.25, subset=['ITA <= -35 & Monk HIJ'])
+        .apply(highlight_value_greater, cols_to_sum=['ITA > 25 & Monk ABCD', '-35 < ITA <= 25 & Monk EFG','ITA <= -35 & Monk HIJ'], threshold=.25, subset=['ITA > 25 & Monk ABCD'])
+        .apply(highlight_value_greater, cols_to_sum=['ITA > 25 & Monk ABCD', '-35 < ITA <= 25 & Monk EFG','ITA <= -35 & Monk HIJ'], threshold=.25, subset=['-35 < ITA <= 25 & Monk EFG'])
+        .apply(highlight_value_greater, cols_to_sum=['ITA > 25 & Monk ABCD', '-35 < ITA <= 25 & Monk EFG','ITA <= -35 & Monk HIJ'], threshold=.25, subset=['ITA <= -35 & Monk HIJ'])
 
         # Highlight if >=1 subject in category MST 1-4 with ITA >= 50°
         .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ITA >= 50 & Monk ABCD'])
