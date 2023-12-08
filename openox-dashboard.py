@@ -59,6 +59,7 @@ def highlight_value_greater(s, cols_to_sum, threshold):
     return ['background-color: #b5e7a0' if v else '' for v in mask]
 
 st.write('Using Monk forehead. Using ITA dorsal (median) if device is fingertip.')
+st.write('SaO2 in 70-80 range -> 67-80')
 
 st.subheader('Feature requests')
 st.markdown('''
@@ -96,14 +97,20 @@ st.dataframe(db
         .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk'])
 
         # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
-        .apply(highlight_value_greater,cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk ABCD'])
-        .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk EFG'])
-        .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
+        # .apply(highlight_value_greater,cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk ABCD'])
+        # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk EFG'])
+        # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABCD'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
         
         # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
-        .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA > 25 & Monk ABCD'])
-        .apply(highlight_value_greater, cols_to_sum=['Unique Subjects', '-35 < ITA <= 25 & Monk EFG','ITA <= -35 & Monk HIJ'], threshold=.25, subset=['-35 < ITA <= 25 & Monk EFG'])
-        .apply(highlight_value_greater, cols_to_sum=['Unique Subjects', '-35 < ITA <= 25 & Monk EFG','ITA <= -35 & Monk HIJ'], threshold=.25, subset=['ITA <= -35 & Monk HIJ'])
+        # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA > 25 & Monk ABCD'])
+        # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['-35 < ITA <= 25 & Monk EFG'])
+        # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA <= -35 & Monk HIJ'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA > 25 & Monk ABCD'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-35 < ITA <= 25 & Monk EFG'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA <= -35 & Monk HIJ'])
 
         # Highlight if >=1 subject in category MST 1-4 with ITA >= 50°
         .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ITA >= 50 & Monk ABCD'])

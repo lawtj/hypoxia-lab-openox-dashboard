@@ -186,6 +186,31 @@ def update_sample(row):
 abg_updated = abg.copy()
 abg_updated['sample'] = abg_updated.apply(update_sample, axis=1)
 
+# if there are 2 samples with the same sample number, average the sao2 and keep only the first sample; 
+# if there are 3 samples with the same sample number, average the sao2 that are not different from more than 0.5
+def average_abl (row):
+    temp = abg_updated[(abg_updated['session'] == row['session']) & (abg_updated['patient_id'] == row['patient_id']) 
+                          & (abg_updated['sample'] == row['sample'])] 
+    if temp.shape[0] == 1:
+        return row['so2']
+    elif temp.shape[0] == 2:
+        return temp['so2'].mean()
+    elif temp.shape[0] == 3:
+        temp = temp.sort_values(by=['time_stamp'])
+        if abs(temp['so2'].iloc[0] - temp['so2'].iloc[1]) <= 0.5:
+            return temp['so2'].iloc[:2].mean()
+        elif abs(temp['so2'].iloc[1] - temp['so2'].iloc[2]) <= 0.5:
+            return temp['so2'].iloc[1:3].mean()
+        elif abs(temp['so2'].iloc[0] - temp['so2'].iloc[2]) <= 0.5:
+            return temp['so2'].iloc[[0,2]].mean()
+    else:
+        return np.nan
+    
+abg_updated['so2'] = abg_updated.apply(average_abl, axis=1)
+
+# drop duplicated rows (keep the first row) for rows with the same session, patient_id, sample
+abg_updated = abg_updated.drop_duplicates(subset=['session', 'patient_id', 'sample'], keep='first')
+
 # %%
 # Merge the joined table with the abg_updated table
 abg_updated['date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
@@ -311,9 +336,9 @@ tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['so2<85'].re
 tdf['so2<85'] = tdf['so2<85'].apply(lambda x: x*100)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
-# check if >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
+# check if >=70% participants/sessions provide data points in the 70%(-3%) -80% decade (sao2)
 abg_updated_copy = abg_updated.copy()
-abg_updated_copy['sao2_70-80'] = abg_updated_copy['so2'].apply(lambda x: 1 if (x >= 70) & (x <= 80) else 0)
+abg_updated_copy['sao2_70-80'] = abg_updated_copy['so2'].apply(lambda x: 1 if (x >= 67) & (x <= 80) else 0)
 abg_updated_copy['session'] = abg_updated_copy['session'].astype(str)
 abg_updated_copy = abg_updated_copy.groupby(by=['session']).mean(numeric_only=True)['sao2_70-80'].reset_index()
 abg_updated_copy['sao2_70-80'] = abg_updated_copy['sao2_70-80'].apply(lambda x: 1 if x > 0 else 0)
@@ -328,7 +353,7 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # group the joined_updated table by device, create three new columns called 'so2_70-80', 'so2_80-90', 'so2_90-100' that is the count of so2 in each decade
 tdf = joined_updated.groupby(by=['device']).count()['so2'].reset_index()
 tdf.rename(columns={'so2':'total'}, inplace=True)
-tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 70)].groupby(by=['device']).count()['so2'].reset_index()['so2']
+tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 67)].groupby(by=['device']).count()['so2'].reset_index()['so2']
 tdf['so2_80-90'] = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] <= 90)].groupby(by=['device']).count()['so2'].reset_index()['so2']
 tdf['so2_90-100'] = joined_updated[joined_updated['so2'] >= 90].groupby(by=['device']).count()['so2'].reset_index()['so2']
 # calculate the percentage of each decade
@@ -341,7 +366,7 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # group by device and count the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively
 tdf = joined_updated.groupby(by=['device','session']).count()['so2'].reset_index()
 tdf.rename(columns={'so2':'total'}, inplace=True)
-tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 70)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
+tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 67)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
 tdf['so2_80-90'] = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] <= 90)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
 tdf['so2_90-100'] = joined_updated[joined_updated['so2'] >= 90].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
 # calculate the percentage of each decade
