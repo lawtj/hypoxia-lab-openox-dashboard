@@ -75,13 +75,13 @@ st.dataframe(db
          # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
         .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['Avg Samples per Session'])
 
-        # Highlight if Range of number of data points per participant/session = 17-30 (sao2)
-        .map(lambda x: 'background-color: #b5e7a0' if x==1 else "", subset=['17 <= Num Samples per Session <= 30'])
+        # Highlight if Range of number of data points per participant is in 17-30 (sao2)
+        .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with 17-30 Samples'])
 
         # Highlight if Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
-        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 70-80'])
-        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 80-90'])
-        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 90-100'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 70-80 (pooled)'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 80-90 (pooled)'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 90-100 (pooled)'])
 
          # Highlight if >= 90% of the sessions in the same device provide so2 data < 85 (sao2)
         .map(lambda x: 'background-color: #b5e7a0' if x>=90 else "", subset=['%\n of Sessions Provides SaO2 < 85'])
@@ -90,13 +90,15 @@ st.dataframe(db
         .map(lambda x: 'background-color: #b5e7a0' if x>=70 else "", subset=['%\n of Sessions Provides SaO2 in 70-80'])
 
         # Highlight if Each sex has approximately 40% percentage (assigned_sex)
-        .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Female'])
-        .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Male'])
+        # .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Female'])
+        # .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Male'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=9.6 else "", subset=['Female'])
+        .map(lambda x: 'background-color: #b5e7a0' if x>=9.6 else "", subset=['Male'])
 
         # Highlight if >= 1 in each of the 10 MST categories (monk_forehead)
         .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk'])
 
-        # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
+        # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10 (monk_forehead)
         # .apply(highlight_value_greater,cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk ABCD'])
         # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk EFG'])
         # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
@@ -104,7 +106,7 @@ st.dataframe(db
         .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
         .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
         
-        # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
+        # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°) (monk_forehead & ita_dorsal)
         # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA > 25 & Monk ABCD'])
         # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['-35 < ITA <= 25 & Monk EFG'])
         # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA <= -35 & Monk HIJ'])
@@ -112,10 +114,10 @@ st.dataframe(db
         .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-35 < ITA <= 25 & Monk EFG'])
         .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA <= -35 & Monk HIJ'])
 
-        # Highlight if >=1 subject in category MST 1-4 with ITA >= 50°
+        # Highlight if >=1 subject in category MST 1-4 with ITA >= 50° (monk_forehead & ita_dorsal)
         .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ITA >= 50 & Monk ABCD'])
 
-        # Highlight if >=2 subjects in category MST 8-10 with ITA <= -45° 
+        # Highlight if >=2 subjects in category MST 8-10 with ITA <= -45°  (monk_forehead & ita_dorsal)
         .map(lambda x: 'background-color: #b5e7a0' if x>=2 else "", subset=['ITA <= -45 & Monk HIJ'])
 
         # Highlight if the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively is > 24

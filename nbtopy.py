@@ -314,9 +314,11 @@ tdf.rename(columns={'max_sample':'avg_sample'}, inplace=True)
 tdf['avg_sample'] = tdf['avg_sample'].round(2)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
-# check range of number of samples per session
+# check range of number of samples per session, if the session satistifes the criteria, label as 1
 joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 17) & (x <= 30) else 0)
-tdf = joined_updated.groupby(by=['device']).min(numeric_only=True)['sample_range'].reset_index()
+# count the number of unique patient that have sample_range = 1 per device
+tdf = joined_updated[joined_updated['sample_range'] == 1].groupby(by=['device']).nunique()['patient_id'].reset_index()
+tdf.rename(columns={'patient_id':'sample_range'}, inplace=True)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # check if >= 90% of the sessions in the same device provide so2 data < 85
@@ -336,7 +338,7 @@ tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['so2<85'].re
 tdf['so2<85'] = tdf['so2<85'].apply(lambda x: x*100)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
-# check if >=70% participants/sessions provide data points in the 70%(-3%) -80% decade (sao2)
+# check if >=70% participants/sessions provide data points in the 70%(-3%) - 80% decade (sao2)
 abg_updated_copy = abg_updated.copy()
 abg_updated_copy['sao2_70-80'] = abg_updated_copy['so2'].apply(lambda x: 1 if (x >= 67) & (x <= 80) else 0)
 abg_updated_copy['session'] = abg_updated_copy['session'].astype(str)
@@ -351,11 +353,14 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # %%
 # Check if each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
 # group the joined_updated table by device, create three new columns called 'so2_70-80', 'so2_80-90', 'so2_90-100' that is the count of so2 in each decade
-tdf = joined_updated.groupby(by=['device']).count()['so2'].reset_index()
+tdf = joined_updated[(joined_updated['so2'] >= 67) & (joined_updated['so2'] < 100)].groupby(by=['device']).count()['so2'].reset_index()
 tdf.rename(columns={'so2':'total'}, inplace=True)
-tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 67)].groupby(by=['device']).count()['so2'].reset_index()['so2']
-tdf['so2_80-90'] = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] <= 90)].groupby(by=['device']).count()['so2'].reset_index()['so2']
-tdf['so2_90-100'] = joined_updated[joined_updated['so2'] >= 90].groupby(by=['device']).count()['so2'].reset_index()['so2']
+t = joined_updated[(joined_updated['so2'] >= 67) & (joined_updated['so2'] < 80)].groupby(by=['device']).count()['so2'].reset_index().rename(columns={'so2':'so2_70-80'})
+tdf = pd.merge(tdf, t, on='device', how='left')
+t = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] < 90)].groupby(by=['device']).count()['so2'].reset_index().rename(columns={'so2':'so2_80-90'})
+tdf = pd.merge(tdf, t, on='device', how='left')
+t = joined_updated[(joined_updated['so2'] >= 90) & (joined_updated['so2'] < 100)].groupby(by=['device']).count()['so2'].reset_index().rename(columns={'so2':'so2_90-100'})
+tdf = pd.merge(tdf, t, on='device', how='left')
 # calculate the percentage of each decade
 tdf['so2_70-80'] = round(tdf['so2_70-80']/tdf['total'], 2) * 100
 tdf['so2_80-90'] = round(tdf['so2_80-90']/tdf['total'], 2) * 100
@@ -405,12 +410,12 @@ column_dict = {'device':'Device',
                 'ita<=-35&MonkHIJ':'ITA <= -35 & Monk HIJ',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
-                'sample_range':'17 <= Num Samples per Session <= 30',
+                'sample_range':'Unique Subjects with 17-30 Samples',
                 'so2<85':'%\n of Sessions Provides SaO2 < 85',
                 'sao2_70-80':'%\n of Sessions Provides SaO2 in 70-80',
-                'so2_70-80':'%\n of SaO2 in 70-80',
-                'so2_80-90':'%\n of SaO2 in 80-90',
-                'so2_90-100':'%\n of SaO2 in 90-100',
+                'so2_70-80':'%\n of SaO2 in 70-80 (pooled)',
+                'so2_80-90':'%\n of SaO2 in 80-90 (pooled)',
+                'so2_90-100':'%\n of SaO2 in 90-100 (pooled)',
                 'session_count':'# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'
                 # 'mean_age_at_session':'Mean Age',
                 # 'min_age_at_session':'Min Age',
