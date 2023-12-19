@@ -281,7 +281,7 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # ITA criteria: >=50, <=-45, >25, between 25 to -35, <-=35
-itacriteria = [(joined_updated['ita']>50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
+itacriteria = [(joined_updated['ita']>=50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
 criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>25&MonkABCD','ita25to-35&MonkEFG','ita<=-35&MonkHIJ']
 
 for i,j in zip(itacriteria,criterianames):
