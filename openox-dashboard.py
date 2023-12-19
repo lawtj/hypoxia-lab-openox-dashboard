@@ -61,11 +61,11 @@ def highlight_value_greater(s, cols_to_sum, threshold):
 st.write('Using Monk forehead. Using ITA dorsal (median) if device is fingertip.')
 st.write('SaO2 in 70-80 range -> 67-80')
 
-st.subheader('Feature requests')
-st.markdown('''
-* Filters for...?
-* Device names
-            ''')
+# st.subheader('Feature requests')
+# st.markdown('''
+# * Filters for...?
+# * Device names
+#             ''')
 
 st.dataframe(db
         .style

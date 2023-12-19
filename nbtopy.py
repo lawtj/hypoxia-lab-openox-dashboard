@@ -369,11 +369,14 @@ tdf = tdf.drop(columns=['total'])
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # group by device and count the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively
-tdf = joined_updated.groupby(by=['device','session']).count()['so2'].reset_index()
+tdf = joined_updated[(joined_updated['so2'] >= 67) & (joined_updated['so2'] < 100)].groupby(by=['device','session']).count()['so2'].reset_index()
 tdf.rename(columns={'so2':'total'}, inplace=True)
-tdf['so2_70-80'] = joined_updated[(joined_updated['so2'] <= 80) & (joined_updated['so2'] >= 67)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
-tdf['so2_80-90'] = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] <= 90)].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
-tdf['so2_90-100'] = joined_updated[joined_updated['so2'] >= 90].groupby(by=['device','session']).count()['so2'].reset_index()['so2']
+t = joined_updated[(joined_updated['so2'] >= 67) & (joined_updated['so2'] < 80)].groupby(by=['device','session']).count()['so2'].reset_index().rename(columns={'so2':'so2_70-80'})
+tdf = pd.merge(tdf, t, on=['device','session'], how='left')
+t = joined_updated[(joined_updated['so2'] >= 80) & (joined_updated['so2'] < 90)].groupby(by=['device','session']).count()['so2'].reset_index().rename(columns={'so2':'so2_80-90'})
+tdf = pd.merge(tdf, t, on=['device','session'], how='left')
+t = joined_updated[(joined_updated['so2'] >= 90) & (joined_updated['so2'] < 100)].groupby(by=['device','session']).count()['so2'].reset_index().rename(columns={'so2':'so2_90-100'})
+tdf = pd.merge(tdf, t, on=['device','session'], how='left')
 # calculate the percentage of each decade
 tdf['so2_70-80'] = round(tdf['so2_70-80']/tdf['total'], 2) * 100
 tdf['so2_80-90'] = round(tdf['so2_80-90']/tdf['total'], 2) * 100
@@ -383,7 +386,6 @@ tdf = tdf.drop(columns=['total'])
 tdf = tdf[(tdf['so2_70-80'] >= 25) & (tdf['so2_80-90'] >= 25) & (tdf['so2_90-100'] >= 25)]
 # group by device and count the number of sessions in tdf
 tdf = tdf.groupby(by=['device']).count()['session'].reset_index()
-# rename session to '# of sessions with >=25% of so2 in the 3 decades' in tdf
 tdf.rename(columns={'session':'session_count'}, inplace=True)
 # merge db with tdf, if there is no session with >=25% of so2 in the 3 decades, fill the value with 0
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
