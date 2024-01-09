@@ -270,8 +270,17 @@ for i in [mstlight, mstmedium, mstdark]:
 
 # check if >= 1 in each of the 10 MST categories
 # check the number of unique monk_forehead per device
+tdf = joined_updated[joined_updated['monk_forehead'].notnull()]
 tdf = joined_updated.groupby(by=['device']).nunique()['monk_forehead'].reset_index()
 tdf.rename(columns={'monk_forehead':'unique_monk_forehead'}, inplace=True)
+db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# display the unique monk_forehead values for each device
+tdf = joined_updated[joined_updated['monk_forehead'].notnull()]
+tdf = tdf.groupby(by=['device'])['monk_forehead'].unique().reset_index()
+# sort the monk_forehead values per device
+tdf['monk_forehead'] = tdf['monk_forehead'].apply(lambda x: sorted(x))
+tdf.rename(columns={'monk_forehead':'Unique Monk Values'}, inplace=True)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 ########## count ITA categories

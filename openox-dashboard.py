@@ -97,6 +97,7 @@ st.dataframe(db
 
         # Highlight if >= 1 in each of the 10 MST categories (monk_forehead)
         .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk'])
+        # .map(lambda x: 'background-color: #b5e7a0' if len(x)==10 else "", subset=['Unique Monk Values']) ### not working? TypeError: object of type 'int' has no len()
 
         # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10 (monk_forehead)
         # .apply(highlight_value_greater,cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk ABCD'])
