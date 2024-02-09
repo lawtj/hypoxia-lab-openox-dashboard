@@ -1,117 +1,19 @@
 # %%
 import pandas as pd
 import numpy as np
-import os
-from redcap import Project
 import streamlit as st
 #from itables import show
-import math
-
-# %% [markdown]
-# Functions
-
-# %%
-#load all data from redcap
-def load_project(key):
-    # api_key = config.redcap[key]
-    api_key = os.environ.get(key)
-    api_url = 'https://redcap.ucsf.edu/api/'
-    project = Project(api_url, api_key)
-    df = project.export_records(format_type='df')
-    return df
-
-def st_load_project(key):
-    api_key = st.secrets[key]
-    api_url = 'https://redcap.ucsf.edu/api/'
-    project = Project(api_url, api_key)
-    df = project.export_records(format_type='df')
-    return df
-
-#reshape manual entered data into long format
-def reshape_manual(df):
-
-    reshaped=pd.DataFrame()
-
-    for index, row in df.iterrows(): # iterate through every patient
-        for i in range(1,11): # iterate through each device in every patient
-            # create temp df from the row containing only device information
-            t2 = row.filter(regex=f'{i}$') 
-            t2 = pd.DataFrame(t2)
-
-            #label the sample number from the index
-            t2['sample_num'] = t2.index
-            t2['sample_num'] = t2['sample_num'].str.extract(r'sat(\d+)') 
-
-            #within each row, label the device
-            t2['device'] = row[f'dev{i}'] 
-
-            #within each row, label the location
-            t2['probe_location'] = row[f'loc{i}'] 
-            
-            #etc
-            t2['date'] = row['date']
-            t2['session_num'] = row['session']
-            t2['patient_id'] = row['patientid']
-
-            #drop the columns not relating to saturation, device and location
-            t2 = t2.drop([f'dev{i}', f'loc{i}']) 
-            
-            #label first column as saturation
-            t2.columns.values[0] = 'saturation'
-
-            #concatenate
-            reshaped = pd.concat([reshaped, t2], axis=0)
-
-    reshaped=reshaped[reshaped['saturation'].notnull()]
-    return reshaped
-
-# count patients
-def pt_counts(konica,joined):
-    # list of patients with konica data
-    haskonica = konica['upi'].unique().tolist()
-    #patients who have monk forehead data
-    hasmonk = joined[joined['monk_forehead'].notnull()]['patient_id'].unique().tolist()
-    #patients who have monk forehead data and konica data
-    hasboth = list(set(haskonica) & set(hasmonk))
-    #patients who have monk forehead data but no konica data
-    hasmonk_notkonica = list(set(hasmonk) - set(haskonica))
-    #patients who have konica data but no monk forehead data
-    haskonica_notmonk = list(set(haskonica) - set(hasmonk))
-    return haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk
-
-# calculate numeric stats
-def stats(var, joined):
-    stats = []
-    stats.append(joined.groupby(by=['device','patient_id']).mean(numeric_only=True)[var].reset_index().groupby(by='device').mean()[var])
-    stats.append(joined.groupby(by=['device','patient_id']).min(numeric_only=True)[var].reset_index().groupby(by='device').min()[var])
-    stats.append(joined.groupby(by=['device','patient_id']).max(numeric_only=True)[var].reset_index().groupby(by='device').max()[var])
-
-    stats = pd.concat(stats, axis=1)
-
-    stats.columns = ['mean_'+var,'min_'+var,'max_'+var]
-    stats[var+'_range'] = stats['max_'+var]-stats['min_'+var]
-    return stats
-
-def ita(row):
-    return (np.arctan((row['lab_l']-50)/row['lab_b'])) * (180/math.pi)
-
-# style database
-def highlight_value_greater(s, cols_to_sum,threshold):
-    sums = db[cols_to_sum].sum(axis=1)
-    mask = (s >= sums*threshold) & (sums > 0)
-    return ['background-color: green' if v else '' for v in mask]
-
-
+import hypoxialab_functions as hlab
 # %%
 
-session = st_load_project('REDCAP_SESSION')
+session = hlab.st_load_project('REDCAP_SESSION')
 session = session.reset_index()
-manual = st_load_project('REDCAP_MANUAL') 
-participant = st_load_project('REDCAP_PARTICIPANT')
-konica = st_load_project('REDCAP_KONICA')
-devices = st_load_project('REDCAP_DEVICES')
-abg = st_load_project('REDCAP_ABG').reset_index()
-manual = reshape_manual(manual)
+manual = hlab.st_load_project('REDCAP_MANUAL') 
+participant = hlab.st_load_project('REDCAP_PARTICIPANT')
+konica = hlab.st_load_project('REDCAP_KONICA')
+devices = hlab.st_load_project('REDCAP_DEVICES')
+abg = hlab.st_load_project('REDCAP_ABG').reset_index()
+manual = hlab.reshape_manual(manual)
 
 # keep only device and date columns from manual
 manual = manual[['patient_id','device','date']]
@@ -122,7 +24,7 @@ joined = session.merge(manual, left_on=['patient_id','session_date'], right_on=[
 # take the median of each unique session
 konica_unique_median = konica.groupby(['date','upi','group']).median(numeric_only=True).reset_index()
 # calculate the ITA
-konica_unique_median['ita'] = konica_unique_median.apply(ita, axis=1)
+konica_unique_median['ita'] = konica_unique_median.apply(hlab.ita, axis=1)
 # keep only dorsal site
 konica_unique_median_site = konica_unique_median[konica_unique_median['group'].str.contains(r'\WB\W')]
 
@@ -143,7 +45,7 @@ joined['dob'] = pd.to_datetime(joined['dob'])
 joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 
 # %%
-haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = pt_counts(konica,joined)
+haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = hlab.pt_counts(konica,joined)
 
 #print lenghts of each list in a loop 
 #list descriptions
@@ -154,9 +56,9 @@ for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_n
 # %%
 # how many individual patients and their ITA ranges?
 t1 = konica_unique_median.groupby(by=['upi']).agg({'ita':['min','max']}).reset_index()
-#t1[t1['patient_id']==958].reset_index()
+# t1[t1['patient_id']==958].reset_index()
 t1[t1['ita']['min']<-45]
-# t1
+t1
 
 # %% [markdown]
 # Fix the sample number errors in the abg table 
@@ -244,17 +146,17 @@ mstmedium = ['E','F','G']
 mstdark = ['H','I','J']
 
 # %%
-#begin creating the dashboard frame as db
+#begin creating the dashboard frame as db_new_v2
 
 #count number of unique patients per device
-db = joined_updated[['device','patient_id', 'assigned_sex']].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
-db = db.rename(columns={'patient_id':'Unique Subjects'})
+db_new_v2 = joined_updated[['device','patient_id', 'assigned_sex']].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
+db_new_v2 = db_new_v2.rename(columns={'patient_id':'Unique Subjects'})
 
 #count assgined_sex
 for i in ['Female','Male']:
     tdf = joined_updated[joined_updated['assigned_sex'] == i].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
-    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-    db.rename(columns={'patient_id':i}, inplace=True)
+    db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
+    db_new_v2.rename(columns={'patient_id':i}, inplace=True)
 
 ########## count monk categories
 
@@ -265,29 +167,54 @@ for i in [mstlight, mstmedium, mstdark]:
     # then groupby device to get the count of unique patients per device
     tdf = joined_updated[joined_updated['monk_forehead'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
     # merge the new monk forehead count data with the dashboard frame
-    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-    db.rename(columns={'patient_id':'monk_forehead_'+i[0]}, inplace=True)
+    db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
+    db_new_v2.rename(columns={'patient_id':'monk_forehead_'+i[0]}, inplace=True)
+
+mst_1_2 = ['A', 'B']
+mst_3_4 = ['C', 'D']
+mst_5_6 = ['E', 'F']
+mst_7_8 = ['G', 'H']
+mst_9_10 = ['I', 'J']
+
+for i in [mst_1_2, mst_3_4, mst_5_6, mst_7_8, mst_9_10]:
+    tdf = joined_updated[joined_updated['monk_forehead'].isin(i)].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
+    db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
+    db_new_v2.rename(columns={'patient_id':'monk_forehead_'+i[0]+i[1]}, inplace=True)
 
 # check if >= 1 in each of the 10 MST categories
 # check the number of unique monk_forehead per device
 tdf = joined_updated[joined_updated['monk_forehead'].notnull()]
 tdf = joined_updated.groupby(by=['device']).nunique()['monk_forehead'].reset_index()
 tdf.rename(columns={'monk_forehead':'unique_monk_forehead'}, inplace=True)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# check the number of unique monk_dorsal per device
+tdf = joined_updated[joined_updated['monk_dorsal'].notnull()]
+tdf = joined_updated.groupby(by=['device']).nunique()['monk_dorsal'].reset_index()
+tdf.rename(columns={'monk_dorsal':'unique_monk_dorsal'}, inplace=True)
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # display the unique monk_forehead values for each device
 tdf = joined_updated[joined_updated['monk_forehead'].notnull()]
 tdf = tdf.groupby(by=['device'])['monk_forehead'].unique().reset_index()
 # sort the monk_forehead values per device
 tdf['monk_forehead'] = tdf['monk_forehead'].apply(lambda x: sorted(x))
-tdf.rename(columns={'monk_forehead':'Unique Monk Values'}, inplace=True)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+tdf.rename(columns={'monk_forehead':'Unique Monk Forehead Values'}, inplace=True)
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# display the unique monk_dorsal values for each device
+tdf = joined_updated[joined_updated['monk_dorsal'].notnull()]
+tdf = tdf.groupby(by=['device'])['monk_dorsal'].unique().reset_index()
+# sort the monk_dorsal values per device
+tdf['monk_dorsal'] = tdf['monk_dorsal'].apply(lambda x: sorted(x))
+tdf.rename(columns={'monk_dorsal':'Unique Monk Dorsal Values'}, inplace=True)
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 ########## count ITA categories
 # number of patients with any ITA data and monk forehead data
 # tdf = joined_updated[joined_updated['monk_forehead'].notnull() & joined_updated['ita'].notnull()].groupby(by=['device','patient_id']).count().groupby('device').count()['record_id_x'].reset_index()
 # tdf.rename(columns={'record_id_x':'ita_monk_any'}, inplace=True)
-# db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+# db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # ITA criteria: >=50, <=-45, >25, between 25 to -35, <-=35
 itacriteria = [(joined_updated['ita']>=50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
@@ -299,17 +226,17 @@ for i,j in zip(itacriteria,criterianames):
     # select only device and patient id columns, rename patient id to the criteria name
     tdf = tdf[['device','patient_id']].set_index('device').rename(columns={'patient_id':j})
     # merge with dashboard frame
-    db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+    db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 ########## add age at session
 
-# db = db.merge(stats('age_at_session',joined_updated), left_on='device', right_index=True, how='outer')
-# db = db.merge(stats('bmi',joined_updated), left_on='device', right_index=True, how='outer')
+# db_new_v2 = db_new_v2.merge(stats('age_at_session',joined_updated), left_on='device', right_index=True, how='outer')
+# db_new_v2 = db_new_v2.merge(stats('bmi',joined_updated), left_on='device', right_index=True, how='outer')
 
 ########## add device names and priority
 # merge with devices, keeping all devices
-db = devices[['manufacturer','model','priority']].merge(db, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
-db = db.rename(columns={'manufacturer':'Manufacturer', 'model':'Model'})
+db_new_v2 = devices[['manufacturer','model','priority']].merge(db_new_v2, left_index=True, right_on='device', how='outer').reset_index().drop(columns=['index'])
+db_new_v2 = db_new_v2.rename(columns={'manufacturer':'Manufacturer', 'model':'Model'})
 
 ########## add abg caculations
 # check average number of samples per session
@@ -321,14 +248,14 @@ joined_updated = joined_updated.merge(abg_updated_max, left_on=['patient_id','se
 tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['max_sample'].reset_index()
 tdf.rename(columns={'max_sample':'avg_sample'}, inplace=True)
 tdf['avg_sample'] = tdf['avg_sample'].round(2)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # check range of number of samples per session, if the session satistifes the criteria, label as 1
 joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 17) & (x <= 30) else 0)
 # count the number of unique patient that have sample_range = 1 per device
 tdf = joined_updated[joined_updated['sample_range'] == 1].groupby(by=['device']).nunique()['patient_id'].reset_index()
 tdf.rename(columns={'patient_id':'sample_range'}, inplace=True)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # check if >= 90% of the sessions in the same device provide so2 data < 85
 # create a new column called 'so2<85' that is 1 if so2 < 85, 0 if so2 >= 85 in abg_updated table
@@ -345,7 +272,7 @@ joined_updated = joined_updated.merge(abg_updated_copy, left_on=['session'], rig
 # group the so2<85 column by device, and calculate the mean of so2<85 in each device
 tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['so2<85'].reset_index()
 tdf['so2<85'] = tdf['so2<85'].apply(lambda x: x*100)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # check if >=70% participants/sessions provide data points in the 70%(-3%) - 80% decade (sao2)
 abg_updated_copy = abg_updated.copy()
@@ -357,7 +284,7 @@ joined_updated['session'] = joined_updated['session'].astype(str)
 joined_updated = joined_updated.merge(abg_updated_copy, left_on=['session'], right_on=['session'], how='left')
 tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['sao2_70-80'].reset_index()
 tdf['sao2_70-80'] = tdf['sao2_70-80'].apply(lambda x: x*100)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # %%
 # Check if each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
@@ -375,7 +302,12 @@ tdf['so2_70-80'] = round(tdf['so2_70-80']/tdf['total'], 2) * 100
 tdf['so2_80-90'] = round(tdf['so2_80-90']/tdf['total'], 2) * 100
 tdf['so2_90-100'] = round(tdf['so2_90-100']/tdf['total'], 2) * 100
 tdf = tdf.drop(columns=['total'])
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
+
+# group by device and find the min and max of so2 as two columns in the tdf dataframe
+tdf = joined_updated.groupby(by=['device']).agg({'so2':['min','max']}).reset_index()
+tdf.columns = ['device','min_sao2','max_sao2']
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # group by device and count the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively
 tdf = joined_updated[(joined_updated['so2'] >= 67) & (joined_updated['so2'] < 100)].groupby(by=['device','session']).count()['so2'].reset_index()
@@ -396,86 +328,37 @@ tdf = tdf[(tdf['so2_70-80'] >= 25) & (tdf['so2_80-90'] >= 25) & (tdf['so2_90-100
 # group by device and count the number of sessions in tdf
 tdf = tdf.groupby(by=['device']).count()['session'].reset_index()
 tdf.rename(columns={'session':'session_count'}, inplace=True)
-# merge db with tdf, if there is no session with >=25% of so2 in the 3 decades, fill the value with 0
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+# merge db_new_v2 with tdf, if there is no session with >=25% of so2 in the 3 decades, fill the value with 0
+db_new_v2 = db_new_v2.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # %%
+db_new_v2 = db_new_v2[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_E', 'monk_forehead_H', 'monk_forehead_AB', 'monk_forehead_CD', 'monk_forehead_EF', 'monk_forehead_GH', 'monk_forehead_IJ', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
 # fill zeroes
-db.fillna(0, inplace=True)
-# drop the assigned_sex column in db
-db = db.drop(columns=['assigned_sex'])
+db_new_v2.fillna(0, inplace=True)
 #create a dictionary of column names and their descriptions
-column_dict = {'device':'Device',
+column_dict_db_new_v2 = {'device':'Device',
                 'Unique Subjects':'Unique Subjects',
                 'Female': 'Female',
                 'Male': 'Male',
                 'monk_forehead_A':'Monk ABCD',
                 'monk_forehead_E':'Monk EFG',
                 'monk_forehead_H':'Monk HIJ',
-                'unique_monk_forehead':'Unique Monk',
-                # 'ita_monk_any':'Any ITA & Monk',
-                'ita>=50&MonkABCD':'ITA >= 50 & Monk ABCD',
-                'ita<=-45&MonkHIJ':'ITA <= -45 & Monk HIJ',
-                'ita>25&MonkABCD':'ITA > 25 & Monk ABCD',
-                'ita25to-35&MonkEFG':'-35 < ITA <= 25 & Monk EFG',
-                'ita<=-35&MonkHIJ':'ITA <= -35 & Monk HIJ',
+                'monk_forehead_AB':'Monk AB',
+                'monk_forehead_CD':'Monk CD',
+                'monk_forehead_EF':'Monk EF',
+                'monk_forehead_GH':'Monk GH',
+                'monk_forehead_IJ':'Monk IJ',
+                'unique_monk_forehead':'Unique Monk Forehead',
+                'unique_monk_dorsal':'Unique Monk Dorsal',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
                 'sample_range':'Unique Subjects with 17-30 Samples',
+                "min_sao2":'Min SaO2',
+                "max_sao2":'Max SaO2',
                 'so2<85':'%\n of Sessions Provides SaO2 < 85',
                 'sao2_70-80':'%\n of Sessions Provides SaO2 in 70-80',
                 'so2_70-80':'%\n of SaO2 in 70-80 (pooled)',
                 'so2_80-90':'%\n of SaO2 in 80-90 (pooled)',
                 'so2_90-100':'%\n of SaO2 in 90-100 (pooled)',
                 'session_count':'# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'
-                # 'mean_age_at_session':'Mean Age',
-                # 'min_age_at_session':'Min Age',
-                # 'max_age_at_session':'Max Age',
-                # 'age_at_session_range':'Age Range',
-                # 'mean_bmi':'Mean BMI',
-                # 'min_bmi':'Min BMI',
-                # 'max_bmi':'Max BMI',
-                # 'bmi_range':'BMI Range',
-                # 'priority':'Test priority'}
                 }
-
-# %% [markdown]
-# - Criteria 1: Sample size >= 24 (unique patient_id)
-
-# %% [markdown]
-# - Criteria 2: Average of number of data points per participant/session = 24 (+/-4) (sao2)
-
-# %% [markdown]
-# - Criteria 3: Range of number of data points per participant/session in 17-30 (sao2)
-
-# %% [markdown]
-# Criteria 4: Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
-
-# %% [markdown]
-# - Criteria 5: >= 90% participants/sessions provide data points below 85% (sao2)
-
-# %% [markdown]
-# - Criteria 6: >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
-
-# %% [markdown]
-# - Criteria 7: Each sex has approximately 40% percentage (assigned_sex)
-
-# %% [markdown]
-# Criteria 8: Number of repeated participants (patient_id, session)
-
-# %% [markdown]
-# - Criteria 9: >= 1 in each of the 10 MST categories
-
-# %% [markdown]
-# - Criteria 10: >= 25% in each of the following MST categories: 1-4, 5-7, 8-10
-
-# %% [markdown]
-# - Criteria 11: >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°)
-
-# %% [markdown]
-# - Criteria 12: >=1 subject in category MST 1-4 with ITA >=50°
-
-# %% [markdown]
-# - Criteria 13: >=2 subjects in category MST 8-10 with ITA <=-45°
-
-
