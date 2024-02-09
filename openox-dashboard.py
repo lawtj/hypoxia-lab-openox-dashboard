@@ -1,9 +1,10 @@
 import streamlit as st
+import pandas as pd
 st.set_page_config(layout="wide")
 import create_figure
-from nbtopy_new_v1 import db_new_v1, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, konica, session, joined
-from nbtopy_new_v2 import db_new_v2, column_dict_db_new_v2
-from nbtopy_old import db_old, column_dict_db_old
+from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
+
+pd.set_option("styler.render.max_elements", 12492765)
 
 st.title('OpenOx Dashboard')
 
@@ -16,6 +17,7 @@ if 'db_new_v1' or 'db_new_v2' or 'db_old' not in st.session_state:
 else:
     db_new_v1 = st.session_state['db_new_v1']
     db_new_v2 = st.session_state['db_new_v2']
+    db_old = st.session_state['db_old']
     haskonica = st.session_state['haskonica']
     hasmonk = st.session_state['hasmonk']
     hasboth = st.session_state['hasboth']
@@ -78,7 +80,7 @@ if selected_df == "ISO 2017/ FDA 2013":
                  .map(lambda x: 'background-color: #b5e7a0' if x>=97 else "", subset=['Max SaO2'])
                 
                  # Highlight if >= 2 with dark skin
-                 .map(lambda x: 'background-color: #b5e7a0' if x>=2 else "", subset=['Fitzpatrick V or VI'])
+                 .map(lambda x: 'background-color: #b5e7a0' if x>=2 else "", subset=['# Sessions with Fitzpatrick V or VI'])
                 
                  # .format(lambda x: f'{x:,.2f}', subset=list(column_dict.values())),
                  .format(lambda x: f'{x:,.0f}', subset=list(column_dict_db_old.values())),
@@ -184,8 +186,6 @@ if selected_df == "ISO 2024/FDA 2024":
             .map(lambda x: 'background-color: #b5e7a0' if x>=70 else "", subset=['%\n of Sessions Provides SaO2 in 70-80'])
 
             # Highlight if Each sex has approximately 33% percentage (assigned_sex)
-            # .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.33, subset=['Female'])
-            # .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.33, subset=['Male'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=7.92 else "", subset=['Female'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=7.92 else "", subset=['Male'])
 
@@ -200,9 +200,6 @@ if selected_df == "ISO 2024/FDA 2024":
             .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk Forehead'])
 
             # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10 (monk_forehead)
-            # .apply(highlight_value_greater,cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk ABCD'])
-            # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk EFG'])
-            # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABCD'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
