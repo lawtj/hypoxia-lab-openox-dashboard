@@ -4,8 +4,6 @@ st.set_page_config(layout="wide")
 import create_figure
 from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
 
-pd.set_option("styler.render.max_elements", 12492765)
-
 st.title('OpenOx Dashboard')
 
 if 'db_new_v1' or 'db_new_v2' or 'db_old' not in st.session_state:
@@ -76,7 +74,7 @@ if selected_df == "ISO 2017/ FDA 2013":
                  .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 90-100 (pooled)'])
                 
                   # Highlight if for 70-100% include 73% and 97% (sao2)
-                 .map(lambda x: 'background-color: #b5e7a0' if x<=73 else "", subset=['Min SaO2'])
+                 .map(lambda x: 'background-color: #b5e7a0' if x<=73 and x!=0 else "", subset=['Min SaO2'])
                  .map(lambda x: 'background-color: #b5e7a0' if x>=97 else "", subset=['Max SaO2'])
                 
                  # Highlight if >= 2 with dark skin
@@ -157,8 +155,23 @@ if selected_df == "ISO 2023/FDA 2024":
     
 
 if selected_df == "ISO 2024/FDA 2024":
-    # style database
     db_new_v2.rename(columns=column_dict_db_new_v2, inplace=True)
+    
+    # create a selectbox to choose a monk_forehead
+    MST_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+    filtered_monk_forehead = ' '
+    filtered_monk_forehead = st.selectbox('Select a monk forehead to filter for devices not completed because of it!', [' '] + MST_list)
+    if filtered_monk_forehead == ' ':
+        pass
+    else:
+        incomplete_devices = []
+        for i in db_new_v2['Device']:
+            tdf = db_new_v2[db_new_v2['Device']==i]['Unique Monk Forehead Values']
+            if tdf.values[0] == 0 or filtered_monk_forehead not in tdf.values[0]:
+                incomplete_devices.append(i)
+        db_new_v2_filtered = db_new_v2[db_new_v2['Device'].isin(incomplete_devices)]
+        db_new_v2 = db_new_v2_filtered
+    
     st.dataframe(db_new_v2
             .style
             # Highlight if Sample size >= 24 (unique patient_id)
@@ -210,8 +223,7 @@ if selected_df == "ISO 2024/FDA 2024":
             # .format(lambda x: f'{x:,.2f}', subset=list(column_dict.values())),
             .format(lambda x: f'{x:,.0f}', subset=list(column_dict_db_new_v2.values())),
 
-            height = (23 + 1) * 35 + 3)
-
+            height = (23 + 1) * 35 + 3)             
 
 ########### Visualize the skin color distribution of the lab by both ITA and Monk #####################
 mscolors = {'A': '#f7ede4', 
