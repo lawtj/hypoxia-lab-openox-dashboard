@@ -42,7 +42,7 @@ def monk_scatter(joined_konica_session, mscolors):
                 color_discrete_map=mscolors,
                 labels={"monk": "Monk"}).update_xaxes(title_text='Monk').update_yaxes(title_text='ITA', range=[-80, 80], dtick=20).update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
                 
-    monk_scatter.add_trace(go.Scatter(x=['J'], y=[np.nan], name='J')) # if you insist on including the blank 'J' column :)
+    # monk_scatter.add_trace(go.Scatter(x=['J'], y=[np.nan], name='J')) # if you insist on including the blank 'J' column :) # comment this out as we have a J now
     
     return monk_scatter
 
