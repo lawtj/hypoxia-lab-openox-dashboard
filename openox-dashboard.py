@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 st.set_page_config(layout="wide")
 import create_figure
+import time
 
 st.title('OpenOx Dashboard')
 
@@ -11,6 +12,7 @@ if not ('db_new_v1' in st.session_state or 'db_new_v2' in st.session_state or 'd
         from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
         for i,j in zip([db_new_v1, db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined],['db_new_v1', 'db_new_v2', 'db_old', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict_db_new_v1', 'column_dict_db_new_v2', 'column_dict_db_old', 'konica','session', 'joined']):
             st.session_state[j] = i
+        st.session_state['update_time'] = time.time()
     st.write('loaded from redcap')
 else:
     print('loading from session state')
@@ -28,10 +30,15 @@ else:
     konica = st.session_state['konica']
     session = st.session_state['session']
     joined = st.session_state['joined']
-    st.write('loaded from session state')
+    st.write('loaded from session state, last updated:', time.ctime(st.session_state['update_time']))
 
 
 ###### layout ######
+if st.button('Clear cache and rerun'):
+    for key in st.session_state.keys():
+        del st.session_state[key]
+    st.rerun()
+
 st.subheader('Count of subjects')
 
 one,two,three = st.columns(3)
