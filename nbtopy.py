@@ -7,14 +7,15 @@ import hypoxialab_functions as hlab
 from trailing_zeroes import fix_trailing_zeroes, fix_trailing_zeroes_nearest_neighbor, threesamples
 
 # %%
-session = hlab.st_load_project('REDCAP_SESSION')
-session = session.reset_index()
-manual = hlab.st_load_project('REDCAP_MANUAL') 
-participant = hlab.st_load_project('REDCAP_PARTICIPANT')
-konica = hlab.st_load_project('REDCAP_KONICA')
-devices = hlab.st_load_project('REDCAP_DEVICES')
-abg = hlab.st_load_project('REDCAP_ABG').reset_index()
-manual = hlab.reshape_manual(manual)
+with st.spinner('Downloading data...'):
+    session = hlab.st_load_project('REDCAP_SESSION')
+    session = session.reset_index()
+    manual = hlab.st_load_project('REDCAP_MANUAL') 
+    participant = hlab.st_load_project('REDCAP_PARTICIPANT')
+    konica = hlab.st_load_project('REDCAP_KONICA')
+    devices = hlab.st_load_project('REDCAP_DEVICES')
+    abg = hlab.st_load_project('REDCAP_ABG').reset_index()
+    manual = hlab.reshape_manual(manual)
 
 # session = pd.read_csv('../DatabaseCode/encounters.csv')
 # session = session.reset_index()
@@ -98,10 +99,11 @@ abg = abg[abg['sample'] != 0]
 # abg_updated['sample'] = abg_updated.apply(update_sample, axis=1)
 
 # clean trailing zeroes
-abg, sessions_with_multiple_dates = fix_trailing_zeroes(abg, 8)
-fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates)
-# resolve samples with more than two blood gases per sample
-threesamples(abg)
+with st.spinner('Cleaning trailing zeroes...'):
+    abg, sessions_with_multiple_dates = fix_trailing_zeroes(abg, 8)
+    fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates)
+    # resolve samples with more than two blood gases per sample
+    threesamples(abg)
 
 # if there are 2 samples with the same sample number, average the sao2 and keep only the first sample; 
 # if there are 3 samples with the same sample number, average the sao2 that are not different from more than 0.5

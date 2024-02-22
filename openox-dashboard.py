@@ -2,17 +2,18 @@ import streamlit as st
 import pandas as pd
 st.set_page_config(layout="wide")
 import create_figure
-from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
 
 st.title('OpenOx Dashboard')
 
-if 'db_new_v1' or 'db_new_v2' or 'db_old' not in st.session_state:
+if not ('db_new_v1' in st.session_state or 'db_new_v2' in st.session_state or 'db_old' in st.session_state):
     print('db is not in session state')
     with st.spinner('Loading data from Redcap...'):
+        from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
         for i,j in zip([db_new_v1, db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined],['db_new_v1', 'db_new_v2', 'db_old', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict_db_new_v1', 'column_dict_db_new_v2', 'column_dict_db_old', 'konica','session', 'joined']):
             st.session_state[j] = i
     st.write('loaded from redcap')
 else:
+    print('loading from session state')
     db_new_v1 = st.session_state['db_new_v1']
     db_new_v2 = st.session_state['db_new_v2']
     db_old = st.session_state['db_old']
