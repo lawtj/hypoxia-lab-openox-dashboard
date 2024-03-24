@@ -133,6 +133,7 @@ abg_updated = abg.drop_duplicates(subset=['session', 'patient_id', 'sample'], ke
 # %%
 # Merge the joined table with the abg_updated table
 abg_updated['date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
+joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick_x']]
 joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'session_date'}), left_on = ['patient_id', 'session_date', 'session'], right_on = ['patient_id', 'session_date','session'], how='left')
 
 abg_2 = abg.copy()
