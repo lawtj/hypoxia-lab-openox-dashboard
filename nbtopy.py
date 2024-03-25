@@ -9,6 +9,8 @@ from trailing_zeroes import fix_trailing_zeroes, fix_trailing_zeroes_nearest_nei
 import os
 import psutil
 
+memhist = {}
+
 process = psutil.Process(os.getpid())  # Get the current process (your Streamlit script)
 def get_memory_usage():
     """Returns memory usage of the current process in MB"""
@@ -17,7 +19,7 @@ def get_memory_usage():
 
 def print_memory_usage(description):
     """Prints the memory usage of the current process in MB"""
-    st.toast(f"Memory usage: {get_memory_usage():.2f} MB at: {description}")
+    memhist[description] = get_memory_usage()
 
 # %%
 print_memory_usage("Start of script")
@@ -115,11 +117,10 @@ abg = abg[abg['sample'] != 0]
 # abg_updated['sample'] = abg_updated.apply(update_sample, axis=1)
 
 # clean trailing zeroes
-with st.spinner('Cleaning trailing zeroes...'):
-    abg, sessions_with_multiple_dates = fix_trailing_zeroes(abg, 8)
-    fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates)
-    # resolve samples with more than two blood gases per sample
-    threesamples(abg)
+abg, sessions_with_multiple_dates = fix_trailing_zeroes(abg, 8)
+fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates)
+# resolve samples with more than two blood gases per sample
+threesamples(abg)
 print_memory_usage("After cleaning trailing zeroes")
 # if there are 2 samples with the same sample number, average the sao2 and keep only the first sample; 
 # if there are 3 samples with the same sample number, average the sao2 that are not different from more than 0.5
@@ -155,14 +156,6 @@ joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'sess
 print_memory_usage("After merging abg and joined")
 
 abg_2 = abg.copy()
-#######identify duplicate session/patient_id combinations
-dupes = abg_2.groupby(['patient_id','session']).size().reset_index()['session'].value_counts() # get list of unique session/patient_id combinations, and count how many times each session appears
-dupes = dupes[dupes > 1].index.tolist() # get the session numbers that appear more than once
-dupes = abg_2[abg_2['session'].isin(dupes)][['patient_id','session']] # filter the abg table to only include the session numbers that appear more than once
-# if len(dupes) > 0:
-#     st.write(dupes)
-# else:
-#     st.write('No duplicate session/patient_id combinations')
 
 
 # %% [markdown]

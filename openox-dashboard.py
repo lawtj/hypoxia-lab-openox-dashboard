@@ -9,9 +9,9 @@ st.title('OpenOx Dashboard')
 @st.cache_data(show_spinner=True)
 def get_redcap_data():
     from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
-    return db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
+    return memhist, db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
 
-db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined = get_redcap_data()
+memhist, db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined = get_redcap_data()
 
 # if not ('db_new_v1' in st.session_state or 'db_new_v2' in st.session_state or 'db_old' in st.session_state):
 #     print('db is not in session state')
@@ -269,3 +269,6 @@ with one:
 
 with two:
     st.plotly_chart(ita_hist)
+
+with st.expander('Memory usage history'):
+    st.write(memhist)
