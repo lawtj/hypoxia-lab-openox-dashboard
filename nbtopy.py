@@ -159,10 +159,10 @@ abg_2 = abg.copy()
 dupes = abg_2.groupby(['patient_id','session']).size().reset_index()['session'].value_counts() # get list of unique session/patient_id combinations, and count how many times each session appears
 dupes = dupes[dupes > 1].index.tolist() # get the session numbers that appear more than once
 dupes = abg_2[abg_2['session'].isin(dupes)][['patient_id','session']] # filter the abg table to only include the session numbers that appear more than once
-if len(dupes) > 0:
-    st.write(dupes)
-else:
-    st.write('No duplicate session/patient_id combinations')
+# if len(dupes) > 0:
+#     st.write(dupes)
+# else:
+#     st.write('No duplicate session/patient_id combinations')
 
 
 # %% [markdown]
