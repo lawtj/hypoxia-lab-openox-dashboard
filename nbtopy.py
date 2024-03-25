@@ -6,7 +6,21 @@ import streamlit as st
 import hypoxialab_functions as hlab
 from trailing_zeroes import fix_trailing_zeroes, fix_trailing_zeroes_nearest_neighbor, threesamples
 
+import os
+import psutil
+
+process = psutil.Process(os.getpid())  # Get the current process (your Streamlit script)
+def get_memory_usage():
+    """Returns memory usage of the current process in MB"""
+    memory_info = process.memory_info()
+    return memory_info.rss / 1024 ** 2  # Convert bytes to MB
+
+def print_memory_usage(description):
+    """Prints the memory usage of the current process in MB"""
+    print(f"Memory usage: {get_memory_usage():.2f} MB at: {description}")
+
 # %%
+print_memory_usage("Start of script")
 with st.spinner('Downloading data...'):
     session = hlab.st_load_project('REDCAP_SESSION')
     session = session.reset_index()
@@ -26,6 +40,7 @@ with st.spinner('Downloading data...'):
 # devices = pd.read_csv('../DatabaseCode/devices.csv')
 # abg = pd.read_csv('../DatabaseCode/abg.csv').reset_index()
 
+print_memory_usage("After loading data")
 # keep only device and date columns from manual
 manual = manual[['patient_id','device','date']]
 
@@ -41,6 +56,7 @@ konica_unique_median_site = konica_unique_median[konica_unique_median['group'].s
 
 # merge the konica data with the session data
 joined = joined.merge(konica_unique_median_site, left_on=['patient_id','session_date'], right_on=['upi','date'], how='left')
+print_memory_usage("After merging data")
 
 # add participant metadata
 participant.reset_index(inplace=True)
@@ -104,7 +120,7 @@ with st.spinner('Cleaning trailing zeroes...'):
     fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates)
     # resolve samples with more than two blood gases per sample
     threesamples(abg)
-
+print_memory_usage("After cleaning trailing zeroes")
 # if there are 2 samples with the same sample number, average the sao2 and keep only the first sample; 
 # if there are 3 samples with the same sample number, average the sao2 that are not different from more than 0.5
 def average_abl (row):
@@ -132,9 +148,11 @@ abg_updated = abg.drop_duplicates(subset=['session', 'patient_id', 'sample'], ke
 
 # %%
 # Merge the joined table with the abg_updated table
+print_memory_usage("Before merging abg and joined")
 abg_updated['date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
 joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick_x']]
 joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'session_date'}), left_on = ['patient_id', 'session_date', 'session'], right_on = ['patient_id', 'session_date','session'], how='left')
+print_memory_usage("After merging abg and joined")
 
 abg_2 = abg.copy()
 #######identify duplicate session/patient_id combinations
@@ -425,3 +443,5 @@ column_dict_db_old = {'device':'Device',
                 'so2_80-90':'%\n of SaO2 in 80-90 (pooled)',
                 'so2_90-100':'%\n of SaO2 in 90-100 (pooled)',
                 }
+
+print_memory_usage("After dashboard")

@@ -6,37 +6,45 @@ import time
 
 st.title('OpenOx Dashboard')
 
-if not ('db_new_v1' in st.session_state or 'db_new_v2' in st.session_state or 'db_old' in st.session_state):
-    print('db is not in session state')
-    with st.spinner('Loading data from Redcap...'):
-        from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
-        for i,j in zip([db_new_v1, db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined],['db_new_v1', 'db_new_v2', 'db_old', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict_db_new_v1', 'column_dict_db_new_v2', 'column_dict_db_old', 'konica','session', 'joined']):
-            st.session_state[j] = i
-        st.session_state['update_time'] = time.time()
-    st.write('loaded from redcap')
-else:
-    print('loading from session state')
-    db_new_v1 = st.session_state['db_new_v1']
-    db_new_v2 = st.session_state['db_new_v2']
-    db_old = st.session_state['db_old']
-    haskonica = st.session_state['haskonica']
-    hasmonk = st.session_state['hasmonk']
-    hasboth = st.session_state['hasboth']
-    haskonica_notmonk = st.session_state['haskonica_notmonk']
-    hasmonk_notkonica = st.session_state['hasmonk_notkonica']
-    column_dict_db_new_v1 = st.session_state['column_dict_db_new_v1']
-    column_dict_db_new_v2 = st.session_state['column_dict_db_new_v2']
-    column_dict_db_old = st.session_state['column_dict_db_old']
-    konica = st.session_state['konica']
-    session = st.session_state['session']
-    joined = st.session_state['joined']
-    st.write('loaded from session state, last updated:', time.ctime(st.session_state['update_time']))
+@st.cache_data
+def get_redcap_data():
+    from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
+    return db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
+
+db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined = get_redcap_data()
+
+# if not ('db_new_v1' in st.session_state or 'db_new_v2' in st.session_state or 'db_old' in st.session_state):
+#     print('db is not in session state')
+#     with st.spinner('Loading data from Redcap...'):
+#         from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
+#         for i,j in zip([db_new_v1, db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined],['db_new_v1', 'db_new_v2', 'db_old', 'haskonica', 'hasmonk', 'hasboth', 'haskonica_notmonk', 'hasmonk_notkonica','column_dict_db_new_v1', 'column_dict_db_new_v2', 'column_dict_db_old', 'konica','session', 'joined']):
+#             st.session_state[j] = i
+#         st.session_state['update_time'] = time.time()
+#     st.write('loaded from redcap')
+# else:
+#     print('loading from session state')
+#     db_new_v1 = st.session_state['db_new_v1']
+#     db_new_v2 = st.session_state['db_new_v2']
+#     db_old = st.session_state['db_old']
+#     haskonica = st.session_state['haskonica']
+#     hasmonk = st.session_state['hasmonk']
+#     hasboth = st.session_state['hasboth']
+#     haskonica_notmonk = st.session_state['haskonica_notmonk']
+#     hasmonk_notkonica = st.session_state['hasmonk_notkonica']
+#     column_dict_db_new_v1 = st.session_state['column_dict_db_new_v1']
+#     column_dict_db_new_v2 = st.session_state['column_dict_db_new_v2']
+#     column_dict_db_old = st.session_state['column_dict_db_old']
+#     konica = st.session_state['konica']
+#     session = st.session_state['session']
+#     joined = st.session_state['joined']
+#     st.write('loaded from session state, last updated:', time.ctime(st.session_state['update_time']))
 
 
 ###### layout ######
 if st.button('Clear cache and rerun'):
-    for key in st.session_state.keys():
-        del st.session_state[key]
+    # for key in st.session_state.keys():
+    #     del st.session_state[key]
+    get_redcap_data.clear()
     st.rerun()
 
 st.subheader('Count of subjects')

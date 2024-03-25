@@ -2,3 +2,5 @@ pycap
 matplotlib
 seaborn
 plotly
+os
+psutil
