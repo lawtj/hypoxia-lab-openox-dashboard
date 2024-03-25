@@ -17,7 +17,7 @@ def get_memory_usage():
 
 def print_memory_usage(description):
     """Prints the memory usage of the current process in MB"""
-    print(f"Memory usage: {get_memory_usage():.2f} MB at: {description}")
+    st.toast(f"Memory usage: {get_memory_usage():.2f} MB at: {description}")
 
 # %%
 print_memory_usage("Start of script")
