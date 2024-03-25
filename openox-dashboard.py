@@ -6,7 +6,7 @@ import time
 
 st.title('OpenOx Dashboard')
 
-@st.cache_data
+@st.cache_data(show_spinner=True)
 def get_redcap_data():
     from nbtopy import db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
     return db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined

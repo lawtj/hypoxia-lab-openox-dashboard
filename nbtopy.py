@@ -21,15 +21,15 @@ def print_memory_usage(description):
 
 # %%
 print_memory_usage("Start of script")
-with st.spinner('Downloading data...'):
-    session = hlab.st_load_project('REDCAP_SESSION')
-    session = session.reset_index()
-    manual = hlab.st_load_project('REDCAP_MANUAL') 
-    participant = hlab.st_load_project('REDCAP_PARTICIPANT')
-    konica = hlab.st_load_project('REDCAP_KONICA')
-    devices = hlab.st_load_project('REDCAP_DEVICES')
-    abg = hlab.st_load_project('REDCAP_ABG').reset_index()
-    manual = hlab.reshape_manual(manual)
+
+session = hlab.st_load_project('REDCAP_SESSION')
+session = session.reset_index()
+manual = hlab.st_load_project('REDCAP_MANUAL') 
+participant = hlab.st_load_project('REDCAP_PARTICIPANT')
+konica = hlab.st_load_project('REDCAP_KONICA')
+devices = hlab.st_load_project('REDCAP_DEVICES')
+abg = hlab.st_load_project('REDCAP_ABG').reset_index()
+manual = hlab.reshape_manual(manual)
 
 # session = pd.read_csv('../DatabaseCode/encounters.csv')
 # session = session.reset_index()
