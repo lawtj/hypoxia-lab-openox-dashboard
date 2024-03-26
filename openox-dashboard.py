@@ -232,6 +232,9 @@ if selected_df == "ISO 2024/FDA 2024":
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABCD'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
+            
+            # Highlight if >= 4 in 'ITA <= -50 & Monk HIJ'
+            .map(lambda x: 'background-color: #b5e7a0' if x>=4 else "", subset=['ITA <= -50 & Monk HIJ'])
 
             # Highlight if the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively is > 24
             .map(lambda x: 'background-color: #b5e7a0' if x>24 else "", subset=['# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'])

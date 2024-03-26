@@ -33,15 +33,6 @@ devices = hlab.st_load_project('REDCAP_DEVICES')
 abg = hlab.st_load_project('REDCAP_ABG').reset_index()
 manual = hlab.reshape_manual(manual)
 
-# session = pd.read_csv('../DatabaseCode/encounters.csv')
-# session = session.reset_index()
-# manual = pd.read_csv('../DatabaseCode/pulseoximeter.csv')
-# manual = hlab.reshape_manual(manual)
-# participant = pd.read_csv('../DatabaseCode/participants.csv')
-# konica = pd.read_csv('../DatabaseCode/konica.csv')
-# devices = pd.read_csv('../DatabaseCode/devices.csv')
-# abg = pd.read_csv('../DatabaseCode/abg.csv').reset_index()
-
 print_memory_usage("After loading data")
 # keep only device and date columns from manual
 manual = manual[['patient_id','device','date']]
@@ -85,36 +76,14 @@ for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_n
 # %%
 # how many individual patients and their ITA ranges?
 t1 = konica_unique_median.groupby(by=['upi']).agg({'ita':['min','max']}).reset_index()
-#t1[t1['patient_id']==958].reset_index()
 t1[t1['ita']['min']<-45]
 
 # %% [markdown]
 # Fix the sample number errors in the abg table 
 
 # %%
-# 1. Delete rows where sample = 0
+# Delete rows where sample = 0
 abg = abg[abg['sample'] != 0]
-
-# check the number of rows in abg - 8271 -> 8268
-# abg.shape[0] 
-
-# 2. Edit the trimmed trailing zeros issue
-
-# abg['time_stamp'] = pd.to_datetime(abg['time_stamp'])
-# def update_sample(row):
-#     if row['sample'] not in [1,2,3]:
-#         return row['sample']
-#     temp = abg[(abg['session'] == row['session']) & (abg['patient_id'] == row['patient_id']) 
-#                           & (abg['sample'] == row['sample'])] 
-#     # check the sample timestamp is at least 5 minutes after the timestamp of the first sample with that label
-#     if (row['time_stamp'] - temp['time_stamp'].min()).seconds > 300:
-#         # if yes, return the 'sample number' + '0'
-#         return row['sample']*10
-#     return row['sample']
-
-# # make a copy of abg
-# abg_updated = abg.copy()
-# abg_updated['sample'] = abg_updated.apply(update_sample, axis=1)
 
 # clean trailing zeroes
 abg, sessions_with_multiple_dates = fix_trailing_zeroes(abg, 8)
@@ -244,8 +213,8 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # ITA criteria: >=50, <=-45, >25, between 25 to -35, <-=35
-itacriteria = [(joined_updated['ita']>=50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
-criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>25&MonkABCD','ita25to-35&MonkEFG','ita<=-35&MonkHIJ']
+itacriteria = [(joined_updated['ita']>=50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>25) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<25) & (joined_updated['ita']>-35) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-35) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']<=-50) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
+criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>25&MonkABCD','ita25to-35&MonkEFG','ita<=-35&MonkHIJ', 'ita<=-50&MonkHIJ']
 
 for i,j in zip(itacriteria,criterianames):
     # temp dataframe for each device, counting only the patients who meet the criteria
@@ -391,7 +360,7 @@ column_dict_db_new_v1 = {'device':'Device',
                 'session_count':'# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'
                 }
 
-db_new_v2 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_E', 'monk_forehead_H', 'monk_forehead_AB', 'monk_forehead_CD', 'monk_forehead_EF', 'monk_forehead_GH', 'monk_forehead_IJ', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
+db_new_v2 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_E', 'monk_forehead_H', 'monk_forehead_AB', 'monk_forehead_CD', 'monk_forehead_EF', 'monk_forehead_GH', 'monk_forehead_IJ', 'ita<=-50&MonkHIJ', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v2 = {'device':'Device',
                 'Unique Subjects':'Unique Subjects',
@@ -405,6 +374,7 @@ column_dict_db_new_v2 = {'device':'Device',
                 'monk_forehead_EF':'Monk EF',
                 'monk_forehead_GH':'Monk GH',
                 'monk_forehead_IJ':'Monk IJ',
+                'ita<=-50&MonkHIJ': 'ITA <= -50 & Monk HIJ',
                 'unique_monk_forehead':'Unique Monk Forehead',
                 'unique_monk_dorsal':'Unique Monk Dorsal',
                 'priority':'Test Priority',
