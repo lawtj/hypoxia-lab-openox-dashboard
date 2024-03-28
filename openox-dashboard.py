@@ -205,7 +205,7 @@ if selected_df == "ISO 2024/FDA 2024":
             .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 90-100 (pooled)'])
             
             # Highlight if for 70-100% include 73% and 97% (sao2)
-            .map(lambda x: 'background-color: #b5e7a0' if x<=73 else "", subset=['Min SaO2'])
+            .map(lambda x: 'background-color: #b5e7a0' if x<=73 and x>0 else "", subset=['Min SaO2'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=97 else "", subset=['Max SaO2'])
 
             # Highlight if >= 90% of the sessions in the same device provide so2 data < 85 (sao2)
