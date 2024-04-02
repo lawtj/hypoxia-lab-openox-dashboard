@@ -34,8 +34,12 @@ abg = hlab.st_load_project('REDCAP_ABG').reset_index()
 manual = hlab.reshape_manual(manual)
 
 print_memory_usage("After loading data")
-# keep only device and date columns from manual
-manual = manual[['patient_id','device','date']]
+
+# start joining the data
+manual = manual.rename(columns={'sample_num':'sample'})
+manual = manual[['patient_id','device','date','sample']]
+# the type of sample in manual was object, convert to float64
+manual['sample'] = manual['sample'].astype('float64')
 
 # merge the session and manual dataframes, so one row is one session with one device. 10 devices in one session = 10 rows
 joined = session.merge(manual, left_on=['patient_id','session_date'], right_on=['patient_id','date'], how='left')
@@ -120,12 +124,15 @@ abg_updated = abg.drop_duplicates(subset=['session', 'patient_id', 'sample'], ke
 # Merge the joined table with the abg_updated table
 print_memory_usage("Before merging abg and joined")
 abg_updated['date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
-joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick_x']]
-joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'session_date'}), left_on = ['patient_id', 'session_date', 'session'], right_on = ['patient_id', 'session_date','session'], how='left')
+joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick_x', 'sample']]
+joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'session_date'}), left_on = ['patient_id', 'session_date', 'session', 'sample'], right_on = ['patient_id', 'session_date','session', 'sample'], how='inner')
 print_memory_usage("After merging abg and joined")
 
-abg_2 = abg.copy()
-
+# remove encounters with fewer than 17 data points
+sample_count_by_session = joined_updated.groupby('session')['sample'].nunique()
+# select sessions with >=17 samples
+sessions_to_keep = sample_count_by_session[sample_count_by_session >= 17].index
+joined_updated = joined_updated[joined_updated['session'].isin(sessions_to_keep)]
 
 # %% [markdown]
 # Dashboard
