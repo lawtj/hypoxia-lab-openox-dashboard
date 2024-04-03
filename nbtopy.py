@@ -293,7 +293,7 @@ joined_updated = joined_updated.merge(abg_updated_copy, on=['session'], how='lef
 # group the so2<85 column by device, and calculate the mean of so2<85 in each device
 tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['so2<85'].reset_index()
 tdf['so2<85'] = tdf['so2<85'].apply(lambda x: x*100)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db = db.merge(tdf, on ='device', how='outer')
 
 # check if >=70% participants/sessions provide data points in the 70%(-3%) - 80% decade (sao2)
 abg_updated_copy = abg_updated.copy()
