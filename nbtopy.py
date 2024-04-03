@@ -36,23 +36,24 @@ manual = hlab.reshape_manual(manual)
 print_memory_usage("After loading data")
 
 # start joining the data
-manual = manual.rename(columns={'sample_num':'sample'})
-manual = manual[['patient_id','device','date','sample']]
+manual = manual.rename(columns={'sample_num':'sample', 'session_num':'session'})
+manual = manual[['patient_id','device','date','sample', 'session']]
 # the type of sample in manual was object, convert to float64
 manual['sample'] = manual['sample'].astype('float64')
 
 # merge the session and manual dataframes, so one row is one session with one device. 10 devices in one session = 10 rows
-joined = session.merge(manual, left_on=['patient_id','session_date'], right_on=['patient_id','date'], how='left')
+# joined = session.merge(manual, left_on=['record_id','patient_id','session_date'], right_on=['session','patient_id','session_date'], how='right')
+joined = session.merge(manual, left_on=['record_id','patient_id'], right_on=['session','patient_id'], how='right')
 
 # take the median of each unique session
-konica_unique_median = konica.groupby(['date','upi','group']).median(numeric_only=True).reset_index()
+konica_unique_median = konica.groupby(['session','group']).median(numeric_only=True).reset_index()
 # calculate the ITA
 konica_unique_median['ita'] = konica_unique_median.apply(hlab.ita, axis=1)
 # keep only dorsal site
 konica_unique_median_site = konica_unique_median[konica_unique_median['group'].str.contains(r'\WB\W')]
-
-# merge the konica data with the session data
-joined = joined.merge(konica_unique_median_site, left_on=['patient_id','session_date'], right_on=['upi','date'], how='left')
+# merge the konica data with the joined data
+# joined = joined.merge(konica_unique_median_site, left_on=['session','patient_id','session_date'], right_on=['session','upi','date'], how='left')
+joined = joined.merge(konica_unique_median_site, left_on=['session','patient_id'], right_on=['session','upi'], how='left')
 print_memory_usage("After merging data")
 
 # add participant metadata
@@ -64,23 +65,17 @@ joined = joined.merge(participant.reset_index(), left_on='patient_id', right_on=
 # calculate age at session
 joined['session_date'] = pd.to_datetime(joined['session_date'])
 joined['dob'] = pd.to_datetime(joined['dob'])
-
 # age at session in years
 joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 
-# %%
-haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = hlab.pt_counts(konica,joined)
+# # %%
+# haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = hlab.pt_counts(konica,joined)
 
-#print lenghts of each list in a loop 
-#list descriptions
-desc = ['subjects with konica data', 'subjects who have monk forehead data', 'subjects who have monk forehead data and konica data', 'subjects who have monk forehead data but no konica data', 'subjects who have konica data but no monk forehead data']
-for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
-    print(i,len(j))
-
-# %%
-# how many individual patients and their ITA ranges?
-t1 = konica_unique_median.groupby(by=['upi']).agg({'ita':['min','max']}).reset_index()
-t1[t1['ita']['min']<-45]
+# #print lenghts of each list in a loop 
+# #list descriptions
+# desc = ['subjects with konica data', 'subjects who have monk forehead data', 'subjects who have monk forehead data and konica data', 'subjects who have monk forehead data but no konica data', 'subjects who have konica data but no monk forehead data']
+# for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
+#     print(i,len(j))
 
 # %% [markdown]
 # Fix the sample number errors in the abg table 
@@ -124,15 +119,37 @@ abg_updated = abg.drop_duplicates(subset=['session', 'patient_id', 'sample'], ke
 # Merge the joined table with the abg_updated table
 print_memory_usage("Before merging abg and joined")
 abg_updated['date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
-joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick_x', 'sample']]
-joined_updated = pd.merge(joined, abg_updated.rename(columns ={'date_calc':'session_date'}), left_on = ['patient_id', 'session_date', 'session', 'sample'], right_on = ['patient_id', 'session_date','session', 'sample'], how='inner')
+
+joined = joined.rename(columns ={'date_x':'session_date', 'fitzpatrick_x':'fitzpatrick'})
+joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample']]
+# joined_updated = pd.merge(joined, abg_updated, left_on = ['patient_id', 'session_date', 'session', 'sample'], right_on = ['patient_id', 'session_date','session', 'sample'], how='inner')
+joined_updated = pd.merge(joined, abg_updated, on = ['session', 'sample', 'patient_id'], how='inner')
 print_memory_usage("After merging abg and joined")
+
+# for session in joined['session'].unique():
+#     date_in_joined = joined[joined['session']==session]['session_date'].unique()
+#     date_in_abg = abg_updated[abg_updated['session']==session]['session_date'].unique()
+#     if len(date_in_joined) != len(date_in_abg):
+#         print(session, date_in_joined, date_in_abg)
+#     elif len(date_in_joined) == len(date_in_abg):
+#         if not np.array_equal(date_in_joined, date_in_abg):
+#             print(session, date_in_joined, date_in_abg)
+
 
 # remove encounters with fewer than 17 data points
 sample_count_by_session = joined_updated.groupby('session')['sample'].nunique()
 # select sessions with >=17 samples
 sessions_to_keep = sample_count_by_session[sample_count_by_session >= 17].index
 joined_updated = joined_updated[joined_updated['session'].isin(sessions_to_keep)]
+
+# %%
+haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = hlab.pt_counts(joined_updated)
+
+#print lenghts of each list in a loop 
+#list descriptions
+desc = ['subjects with konica data', 'subjects who have monk forehead data', 'subjects who have monk forehead data and konica data', 'subjects who have monk forehead data but no konica data', 'subjects who have konica data but no monk forehead data']
+for i,j in zip(desc,[haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk]):
+    print(i,len(j))
 
 # %% [markdown]
 # Dashboard
@@ -147,7 +164,7 @@ tdf = tdf.rename(columns={'session':'Unique Sessions'})
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # # count the number of fitzpatrick in 5 and 6
-tdf = joined_updated[joined_updated['fitzpatrick_x'].isin([5,6])].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
+tdf = joined_updated[joined_updated['fitzpatrick'].isin([5,6])].groupby(by=(['device','patient_id'])).count().reset_index().groupby('device').count()['patient_id']
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 db.rename(columns={'patient_id':'Fitzpatrick_5_6'}, inplace=True)
 
@@ -270,8 +287,9 @@ abg_updated_copy = abg_updated_copy.groupby(by=['session']).mean(numeric_only=Tr
 # change the so2<85 column to 1 if the column value is greater than 0, 0 otherwise
 abg_updated_copy['so2<85'] = abg_updated_copy['so2<85'].apply(lambda x: 1 if x > 0 else 0)
 # merge the abg_updated table with the joined_updated table
-joined_updated['session'] = joined_updated['session'].astype(str)
-joined_updated = joined_updated.merge(abg_updated_copy, left_on=['session'], right_on=['session'], how='left')
+abg_updated_copy = abg_updated_copy.dropna()
+abg_updated_copy['session'] = abg_updated_copy['session'].astype(float)
+joined_updated = joined_updated.merge(abg_updated_copy, on=['session'], how='left')
 # group the so2<85 column by device, and calculate the mean of so2<85 in each device
 tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['so2<85'].reset_index()
 tdf['so2<85'] = tdf['so2<85'].apply(lambda x: x*100)
@@ -283,8 +301,9 @@ abg_updated_copy['sao2_70-80'] = abg_updated_copy['so2'].apply(lambda x: 1 if (x
 abg_updated_copy['session'] = abg_updated_copy['session'].astype(str)
 abg_updated_copy = abg_updated_copy.groupby(by=['session']).mean(numeric_only=True)['sao2_70-80'].reset_index()
 abg_updated_copy['sao2_70-80'] = abg_updated_copy['sao2_70-80'].apply(lambda x: 1 if x > 0 else 0)
-joined_updated['session'] = joined_updated['session'].astype(str)
-joined_updated = joined_updated.merge(abg_updated_copy, left_on=['session'], right_on=['session'], how='left')
+abg_updated_copy = abg_updated_copy.dropna()
+abg_updated_copy['session'] = abg_updated_copy['session'].astype(float)
+joined_updated = joined_updated.merge(abg_updated_copy, on=['session'], how='left')
 tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['sao2_70-80'].reset_index()
 tdf['sao2_70-80'] = tdf['sao2_70-80'].apply(lambda x: x*100)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
