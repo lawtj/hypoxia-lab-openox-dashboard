@@ -59,16 +59,17 @@ def reshape_manual(df):
     return reshaped
 
 # count patients
-def pt_counts(konica,joined):
+def pt_counts(joined):
     # list of patients with konica data
-    haskonica = konica['upi'].unique().tolist()
-    #patients who have monk fingernail data
-    hasmonk = joined[joined['monk_fingernail'].notnull()]['patient_id'].unique().tolist()
-    #patients who have monk fingernail data and konica data
+    # haskonica = konica['upi'].unique().tolist()
+    haskonica = joined[joined['ita'].notnull()]['patient_id'].unique().tolist()
+    #patients who have monk forehead data
+    hasmonk = joined[joined['monk_forehead'].notnull()]['patient_id'].unique().tolist()
+    #patients who have monk forehead data and konica data
     hasboth = list(set(haskonica) & set(hasmonk))
-    #patients who have monk fingernail data but no konica data
+    #patients who have monk forehead data but no konica data
     hasmonk_notkonica = list(set(hasmonk) - set(haskonica))
-    #patients who have konica data but no monk fingernail data
+    #patients who have konica data but no monk forehead data
     haskonica_notmonk = list(set(haskonica) - set(hasmonk))
     return haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk
 
