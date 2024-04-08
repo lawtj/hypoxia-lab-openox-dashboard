@@ -212,7 +212,7 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 tdf = joined_updated[joined_updated['monk_dorsal'].notnull()]
 tdf = joined_updated.groupby(by=['device']).nunique()['monk_dorsal'].reset_index()
 tdf.rename(columns={'monk_dorsal':'unique_monk_dorsal'}, inplace=True)
-db = db.merge(tdf, left_on='device', right_on='device', how='outer')
+db = db.merge(tdf, on = 'device', how='outer')
 
 # display the unique monk_forehead values for each device
 tdf = joined_updated[joined_updated['monk_forehead'].notnull()]
