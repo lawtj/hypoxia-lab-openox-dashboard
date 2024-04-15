@@ -27,6 +27,7 @@ def getdf():
     return df
 
 df = getdf()
+dfstats = df.copy()
 
 ####################### title #######################
 
@@ -65,6 +66,9 @@ with tab_overview:
         "session_notes": st.column_config.TextColumn("Session Notes", width='large'),
         "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
         "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small')})
+    st.write('Total number of sessions:', len(dfstats))
+    st.write('Number of sessions with date issues:', len(dfstats[dfstats['date_issues_tf']]))
+    st.write('Number of sessions with patient ID issues:', len(dfstats[dfstats['patient_id_issues_tf']]))
 
 with tab_details:
 
