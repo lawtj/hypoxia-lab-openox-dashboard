@@ -6,24 +6,13 @@ import ast
 from redcap import Project
 import io
 
-def get_dict(x):
-    try:
-        # replace nan with np.nan in the string
-        x = x.replace('nan', "'np.nan'")
-        return ast.literal_eval(x)
-    except:
-        #print error
-        return 'error' + str(x)
-
-# df = pd.read_csv("qidf.csv", index_col='session_id')
-
 @st.cache_data
 def getdf():
     api_url = 'https://redcap.ucsf.edu/api/'
     api_k = st.secrets['api_k']
     proj = Project(api_url, api_k)
     f = io.BytesIO(proj.export_file(record='10', field='file')[0])
-    df = pd.read_csv(f, index_col='session_id')
+    df = pd.read_pickle(f)
     return df
 
 df = getdf()
@@ -33,28 +22,42 @@ dfstats = df.copy()
 
 st.title('Session Quality Control')
 
+df['missing_dates_tf'] = df['dates'].apply(lambda x: x['missing'])
+df['missing_ptids'] = df['patient_ids'].apply(lambda x: x['missing_data'])
+df['missing_ptids_tf'] = df['missing_ptids'].apply(lambda x: len(x)>0)
+
+# st.dataframe(df, hide_index=True)
+
 ####################### filters #######################
 
-show_date_issues = st.checkbox('Show sessions with date issues', value=True)
-show_ptid_issues = st.checkbox('Show sessions with patient ID issues', value=True)
+show_date_issues = st.checkbox('Show sessions with date discrepancies', value=False)
+show_missing_dates = st.checkbox('Show sessions with missing dates', value=False)
+show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=True)
+show_missing_ptids = st.checkbox('Show sessions with missing patient IDs', value=False)
 
-if not show_date_issues and not show_ptid_issues:
-    print('showing all data')
+# Filtering logic
+if not show_date_issues and not show_ptid_issues and not show_missing_dates and not show_missing_ptids:
+    df = df  # Show all data if no filter is selected
 else:
-    if show_date_issues and not show_ptid_issues:
-        df = df[df['date_issues_tf']]
-    elif not show_date_issues and show_ptid_issues:
-        df = df[df['patient_id_issues_tf']]
-    else:
-        df = df[df['date_issues_tf'] | df['patient_id_issues_tf']]
+    # Create masks based on user selection
+    mask = pd.Series([False] * len(df))  # Initialize mask to False
+    if show_date_issues:
+        mask |= df['date_issues_tf']  # Update mask for date issues
+    if show_ptid_issues:
+        mask |= df['patient_id_issues_tf']  # Update mask for patient ID issues
+    if show_missing_dates:
+        mask |= df['missing_dates_tf']
+    if show_missing_ptids:
+        mask |= df['missing_ptids_tf']
+    
+
+    df = df[mask]  # Apply the mask
+
+selected_session = st.selectbox('Select Session ID', df['session_id'].sort_values(ascending=False))
 
 
-
-selected_session = st.selectbox('Select Session ID', df.index)
-
-
-datesdict = get_dict(df.loc[selected_session]['dates'])
-ptids = get_dict(df.loc[selected_session]['patient_ids'])
+datesdict = df.loc[df['session_id'] == selected_session,'dates'].values[0]
+ptids = df.loc[df['session_id'] == selected_session, 'patient_ids'].values[0]
 
 ####################### layout #######################
 
@@ -62,59 +65,60 @@ ptids = get_dict(df.loc[selected_session]['patient_ids'])
 tab_overview, tab_details = st.tabs(['Overview', 'Details'])
 
 with tab_overview:
-    st.dataframe(df[['session_notes','date_issues_tf','patient_id_issues_tf']], use_container_width=True, column_config={
+    st.dataframe(df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
         "session_notes": st.column_config.TextColumn("Session Notes", width='large'),
         "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
-        "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small')})
+        "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small'),
+        'missing_ptids': st.column_config.ListColumn('Missing Patient IDs', width='medium')},hide_index=True)
     st.write('Total number of sessions:', len(dfstats))
-    st.write('Number of sessions with date issues:', len(dfstats[dfstats['date_issues_tf']]))
-    st.write('Number of sessions with patient ID issues:', len(dfstats[dfstats['patient_id_issues_tf']]))
+    st.write('Number of sessions with date discrepancies:', len(dfstats[dfstats['date_issues_tf']]))
+    st.write('Number of sessions with patient ID discrepancies:', len(dfstats[dfstats['patient_id_issues_tf']]))
 
 with tab_details:
 
     st.markdown(f'## Session {selected_session}')
 
     st.markdown('### Notes')
-    if pd.isna(df.loc[selected_session]['session_notes']):
+    if pd.isna(df.loc[df['session_id']==selected_session,'session_notes'].values[0]):
         st.write('No notes found')
     else:
-        st.write(df.loc[selected_session]['session_notes'])
+        st.write(df.loc[df['session_id']==selected_session,'session_notes'].values[0])
 
     left, right = st.columns(2)
 
     with left:
         st.markdown('### Dates')
         # make a warning flag if there is date_issues_tf = True
-        if df.loc[selected_session]['date_issues_tf']:
+        if df.loc[df['session_id']==selected_session, 'date_issues_tf'].values[0]:
             st.error('Date issues found', icon="🚨")
         else:
             st.success('No date issues found', icon="✅")
         st.markdown(f'''
         
-        * **Session date:** {datesdict['session']} 
+        * **Session date:** {datesdict['dates']['session']} 
 
-        * **Konica date:** {datesdict['konica']}
+        * **Konica date:** {datesdict['dates']['konica']}
 
-        * **ABG file date:** {datesdict['bloodgas']}
+        * **ABG file date:** {datesdict['dates']['bloodgas']}
 
-        * **Manual pulse ox entry date:** {datesdict['pulseox'] if datesdict['pulseox'] != [] else 'No manual pulse ox entry data'}
+        * **Manual pulse ox entry date:** {datesdict['dates']['pulseox'] if datesdict['dates']['pulseox'] != [] else 'No manual pulse ox entry data'}
         ''')
 
     with right:
         st.markdown('### Patient ID Issues')
         # make a warning flag if there is patient_id_issues_tf = True
-        if df.loc[selected_session]['patient_id_issues_tf']:
+        if df.loc[df['session_id']==selected_session,'patient_id_issues_tf'].values[0]:
             st.error('Patient ID issues found', icon="🚨")
         else:
             st.success('No patient ID issues found', icon="✅")
 
         st.markdown(f'''
-        * **Session patient ID**: {ptids['session']} 
+        * **Session patient ID**: {ptids['patient_ids']['session']} 
 
-        * **Konica patient ID**: {ptids['konica']}
+        * **Konica patient ID**: {ptids['patient_ids']['konica']}
 
-        * **ABG file patient ID**: {ptids['bloodgas']}
+        * **ABG file patient ID**: {ptids['patient_ids']['bloodgas']}
 
-        * **Manual pulse ox entry patient ID**: {ptids['pulseox'] if 'pulseox' in ptids.keys() else 'No manual pulse ox entry data'}
+        * **Manual pulse ox entry patient ID**: {ptids['patient_ids']['pulseox']}
         ''')
 
