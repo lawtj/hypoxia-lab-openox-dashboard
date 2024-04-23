@@ -45,10 +45,10 @@ manual['sample'] = manual['sample'].astype('float64')
 # joined = session.merge(manual, left_on=['record_id','patient_id','session_date'], right_on=['session','patient_id','session_date'], how='right')
 joined = session.merge(manual, left_on=['record_id','patient_id'], right_on=['session','patient_id'], how='right')
 
-# take the median of each unique session
-konica_unique_median = konica.groupby(['session','group']).median(numeric_only=True).reset_index()
 # calculate the ITA
-konica_unique_median['ita'] = konica_unique_median.apply(hlab.ita, axis=1)
+konica['ita'] = konica.apply(hlab.ita, axis=1)
+# take the median of each unique session
+konica_unique_median = konica[konica['ita'] == konica.groupby(['session', 'group'])['ita'].transform('median')]
 # keep only dorsal site
 konica_unique_median_site = konica_unique_median[konica_unique_median['group'].str.contains(r'\WB\W')]
 # merge the konica data with the joined data

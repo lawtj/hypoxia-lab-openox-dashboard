@@ -4,7 +4,6 @@ import numpy as np
 from redcap import Project
 import io
 import plotly.express as px
-# from nonDisparateAnalysis import calc_NDB
 
 def check_password():
     """Returns `True` if the user had one of the correct passwords."""

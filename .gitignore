@@ -4,3 +4,4 @@
 *.pyc
 *.csv
 config.py
+pages/.DS_Store
