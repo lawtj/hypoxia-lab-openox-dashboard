@@ -44,7 +44,7 @@ memhist, db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_not
 if st.button('Clear cache and rerun'):
     # for key in st.session_state.keys():
     #     del st.session_state[key]
-    get_redcap_data.clear()
+    st.cache_data.clear()
     st.rerun()
 
 st.subheader('Count of subjects')
