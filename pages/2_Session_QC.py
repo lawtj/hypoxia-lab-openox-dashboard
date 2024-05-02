@@ -6,7 +6,6 @@ import ast
 from redcap import Project
 import io
 
-@st.cache_data
 def getdf():
     api_url = 'https://redcap.ucsf.edu/api/'
     api_k = st.secrets['api_k']
