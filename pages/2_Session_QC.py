@@ -15,7 +15,6 @@ def getdf():
     return df
 
 df = getdf()
-dfstats = df.copy()
 
 ####################### title #######################
 
@@ -24,6 +23,8 @@ st.title('Session Quality Control')
 df['missing_dates_tf'] = df['dates'].apply(lambda x: x['missing'])
 df['missing_ptids'] = df['patient_ids'].apply(lambda x: x['missing_data'])
 df['missing_ptids_tf'] = df['missing_ptids'].apply(lambda x: len(x)>0)
+df['missing_abg_tf'] = df['missing_ptids'].apply(lambda x: 'Blood Gas' in x)
+df['missing_konica_tf'] = df['missing_ptids'].apply(lambda x: 'Konica' in x)
 
 # st.dataframe(df, hide_index=True)
 
@@ -33,9 +34,12 @@ show_date_issues = st.checkbox('Show sessions with date discrepancies', value=Fa
 show_missing_dates = st.checkbox('Show sessions with missing dates', value=False)
 show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=True)
 show_missing_ptids = st.checkbox('Show sessions with missing patient IDs', value=False)
+show_missing_abgs = st.checkbox('Show sessions with missing ABG data', value=False)
+show_missing_konica = st.checkbox('Show sessions with missing Konica data', value=False)
+dfstats = df.copy()
 
 # Filtering logic
-if not show_date_issues and not show_ptid_issues and not show_missing_dates and not show_missing_ptids:
+if not show_date_issues and not show_ptid_issues and not show_missing_dates and not show_missing_ptids and not show_missing_abgs and not show_missing_konica:
     df = df  # Show all data if no filter is selected
 else:
     # Create masks based on user selection
@@ -48,6 +52,10 @@ else:
         mask |= df['missing_dates_tf']
     if show_missing_ptids:
         mask |= df['missing_ptids_tf']
+    if show_missing_abgs:
+        mask |= df['missing_abg_tf']
+    if show_missing_konica:
+        mask |= df['missing_konica_tf']
     
 
     df = df[mask]  # Apply the mask
@@ -64,14 +72,19 @@ ptids = df.loc[df['session_id'] == selected_session, 'patient_ids'].values[0]
 tab_overview, tab_details = st.tabs(['Overview', 'Details'])
 
 with tab_overview:
-    st.dataframe(df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
-        "session_notes": st.column_config.TextColumn("Session Notes", width='large'),
+    st.dataframe(df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_abg_tf','missing_konica_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
+        "session_notes": st.column_config.TextColumn("Session Notes", width='medium'),
         "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
         "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small'),
-        'missing_ptids': st.column_config.ListColumn('Missing Patient IDs', width='medium')},hide_index=True)
+        'missing_ptids': st.column_config.ListColumn('Missing Patient IDs', width='medium'),
+        'missing_abg_tf': st.column_config.CheckboxColumn("Missing ABG"),
+        'missing_konica_tf':st.column_config.CheckboxColumn('Missing Konica')},hide_index=True)
+
     st.write('Total number of sessions:', len(dfstats))
     st.write('Number of sessions with date discrepancies:', len(dfstats[dfstats['date_issues_tf']]))
     st.write('Number of sessions with patient ID discrepancies:', len(dfstats[dfstats['patient_id_issues_tf']]))
+    st.write('Number of sessions with missing ABG data:', len(dfstats[dfstats['missing_abg_tf']]))
+    st.write('Number of sessions with missing Konica data:', len(dfstats[dfstats['missing_konica_tf']]))
 
 with tab_details:
 
