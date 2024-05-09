@@ -100,10 +100,6 @@ def fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates):
     # Iterate over each unique session number and its corresponding group in the DataFrame 'abg'
     for session_num, session_group in abg[abg['session'].isin(sessions_with_multiple_dates)].groupby(['session']):
         
-        # if so2 values are not numeric, then skip this session
-        if not pd.api.types.is_numeric_dtype(session_group['so2']):
-            continue
-        
         # Calculate the median values for each unique 'sample' within the session group
         sampleindex = session_group.groupby('sample').median(numeric_only=True).reset_index()
         
@@ -155,8 +151,6 @@ def threesamples(abg):
     for group, sample in abg.groupby(['session','sample']):
         #group is a tuple of (current session, current sample), and sample is the dataframe filtered 
             ## --------------- calculate the difference between the median and the so2 value here
-            if not pd.api.types.is_numeric_dtype(sample['so2']):
-                continue
             median_so2 = sample['so2'].median()
             sample['diff'] = sample['so2'] - median_so2
             ## --------------- if any difference greater than 1.5, we need to skip this sample - might be a trailing 0s problem or something else weird
