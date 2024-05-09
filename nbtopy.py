@@ -365,8 +365,6 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # fill zeroes
 db.fillna(0, inplace=True)
 
-print(db['ITA <= -50 & Monk HIJ SID'])
-
 db_new_v1 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_E', 'monk_forehead_H', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'ita>=50&MonkABCD', 'ita<=-45&MonkHIJ', 'ita>25&MonkABCD', 'ita25to-35&MonkEFG', 'ita<=-35&MonkHIJ', 'ita<=-50&MonkHIJ', 'ITA <= -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v1 = {'device':'Device',
