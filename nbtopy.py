@@ -84,6 +84,9 @@ joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 # Delete rows where sample = 0
 abg = abg[abg['sample'] != 0]
 
+# print out session and sample that has '94.398.1' as so2
+print(abg[abg['so2'] == '94.398.1'][['session', 'sample']])
+
 # clean trailing zeroes
 abg, sessions_with_multiple_dates = fix_trailing_zeroes(abg, 8)
 fix_trailing_zeroes_nearest_neighbor(abg, sessions_with_multiple_dates)
@@ -95,6 +98,8 @@ print_memory_usage("After cleaning trailing zeroes")
 def average_abl (row):
     temp = abg[(abg['session'] == row['session']) & (abg['patient_id'] == row['patient_id']) 
                           & (abg['sample'] == row['sample'])] 
+    if not pd.api.types.is_numeric_dtype(temp['so2']):
+        return np.nan
     if temp.shape[0] == 1:
         return row['so2']
     elif temp.shape[0] == 2:
