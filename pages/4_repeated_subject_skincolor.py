@@ -39,7 +39,7 @@ session_konica['monk_forehead'] = session_konica['monk_forehead'].replace(['A', 
 session_konica['monk_forehead_diff'] = session_konica.groupby('subject_id')['monk_forehead'].transform('max') - session_konica.groupby('subject_id')['monk_forehead'].transform('min')
 
 st.write("### Count of repeated subjects in the lab: ", session_konica.groupby('subject_id')['session'].nunique().reset_index().query('session > 1')['subject_id'].nunique())
-st.write("Only subjects with monk_forehead change <= 1 letter are displayed below.")
+# st.write("Only subjects with monk_forehead change <= 1 letter are displayed below.")
 
 ### filters
 with st.sidebar:
@@ -51,9 +51,14 @@ with st.sidebar:
     ITA_diff_list = ['>=30', '>=20', '>=10']
     selected_ITA_diff = st.selectbox('ITA Difference', ITA_diff_list)
     
+    mst_diff_list = ['only <=1', 'all']
+    selected_mst_diff = st.selectbox('Monk Forehead Change', mst_diff_list)
+    
     # only look at repeated subjects that have monk_forehead change <= 1 and filter by selected site
-    session_konica = session_konica[(session_konica['monk_forehead_diff'] <= 1) & (session_konica['group'] == selected_site)]
-    # session_konica = session_konica[(session_konica['group'] == selected_site)]
+    if selected_mst_diff == 'only <=1':
+        session_konica = session_konica[(session_konica['monk_forehead_diff'] <= 1) & (session_konica['group'] == selected_site)]
+    else:
+        session_konica = session_konica[(session_konica['group'] == selected_site)]
     session_konica['ita_range'] = session_konica.groupby('subject_id')['ita'].transform('max') - session_konica.groupby('subject_id')['ita'].transform('min')
     session_konica['monk'] = session_konica['monk'].replace(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     session_konica['mst_range'] = session_konica.groupby('subject_id')['monk'].transform('max') - session_konica.groupby('subject_id')['monk'].transform('min')
