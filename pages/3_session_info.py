@@ -20,7 +20,8 @@ session = st_load_project('REDCAP_SESSION').reset_index()
 session = session.rename(columns={'record_id':'session'})
 konica = st_load_project('REDCAP_KONICA').rename(columns={'upi':'patient_id'})
 konica['ita'] = konica.apply(ita, axis=1)
-konica = konica[konica['ita'] == konica.groupby(['session', 'group'])['ita'].transform('median')]
+# konica = konica[konica['ita'] == konica.groupby(['session', 'group'])['ita'].transform('median')]
+konica = konica.groupby(['session','group']).median(numeric_only=True).reset_index()
 
 # Merge session and konica data
 session_konica = pd.merge(session, konica, on=['patient_id','session'], how='outer')
@@ -44,7 +45,8 @@ ita_groups = {'Back Earlobe (F)': 'Back Earlobe',
 session_konica['group'] = session_konica['group'].map(ita_groups)
 
 st.title('Session Information')
-selected_sid = st.selectbox('Select a patient_id', session_konica['patient_id'].unique())
+sorted_patient_ids = sorted(session_konica['patient_id'].unique())
+selected_sid = st.selectbox('Select a patient_id', sorted_patient_ids)
 
 st.write(f"## Patient ID: {selected_sid}")
 
