@@ -65,6 +65,7 @@ def create_subset_frame(labview_samples, selected_session, show_cleaned=False):
         # Add logic to set so2 and Nellcor/SpO2 to np.nan based on their stability
         frame['so2'] = frame.apply(lambda row: row['so2'] if row['so2_stable'] else np.nan, axis=1)
         frame['Nellcor/SpO2'] = frame.apply(lambda row: row['Nellcor/SpO2'] if row['Nellcor_stable'] else np.nan, axis=1)
+        frame['bias'] = frame.apply(lambda row: row['bias'] if pd.notnull(row['so2']) and (pd.notnull(row['Nellcor/SpO2']) or pd.notnull(row['Nellcor PM1000N-1/SpO2'])) else np.nan, axis=1)
     
     criteria_check_tuple, criteria_check_df = ox.session_criteria_check(frame)
     
