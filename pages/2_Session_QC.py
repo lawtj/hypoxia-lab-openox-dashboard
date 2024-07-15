@@ -157,6 +157,7 @@ def update_qc_field(df, session_id, ):
     update_df['data_quality_checked'] = st.session_state.qc_quality
     update_df['qc_complete'] = st.session_state.qc_complete
     update_df['data_quality_notes'] = st.session_state.qc_quality_notes
+    update_df['data_quality_action'] = st.session_state.qc_data_qualtiy_action
     proj.import_records(update_df, import_format='df')
     qc_message.success('QC status updated', icon='✅')
     qc_message.caption(pd.Timestamp.now())
@@ -263,14 +264,31 @@ if limit_to_manual_sessions:
     set2 = set(labview_samples[labview_samples['manual_so2'] == 'reject']['session'].unique().tolist())
     manualsessionlist = list(set1.intersection(set2))
     qc_status = qc_status[qc_status['session_id'].isin(manualsessionlist)]
+dfm = df[df['session_id'].isin(qc_status['session_id'])][['session_id','session_notes','missing_abg_tf','missing_konica_tf']]
+#invert the true false values for missing files
+dfm['missing_abg_tf'] = ~dfm['missing_abg_tf']
+dfm['missing_konica_tf'] = ~dfm['missing_konica_tf']
+qc_display = qc_status.merge(dfm, on='session_id', how='left')
 
-st.dataframe(qc_status[['session_id','session_notes_addressed','missing_files_resolved','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
+
+st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
     "session_notes_addressed": st.column_config.CheckboxColumn("Session Notes", width='small'),
+    'missing_abg_tf': st.column_config.CheckboxColumn("ABG file resolved", width='small'),
+    'missing_konica_tf': st.column_config.CheckboxColumn("Konica file resolved", width='small'),
     "missing_files_resolved": st.column_config.CheckboxColumn("Missing Files", width='small'),
     "date_discrepancies_resolved": st.column_config.CheckboxColumn("Date Discrepancies", width='small'),
     "id_discrepancies_resolved": st.column_config.CheckboxColumn("Patient ID Discrepancies", width='small'),
     "data_quality_checked": st.column_config.CheckboxColumn("Data Quality", width='small'),
     "qc_complete": st.column_config.CheckboxColumn("QC Complete", width='small')}, hide_index=True)
+
+
+# st.dataframe(df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_abg_tf','missing_konica_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
+#     "session_notes": st.column_config.TextColumn("Session Notes", width='medium'),
+#     "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
+#     "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small'),
+#     'missing_ptids': st.column_config.ListColumn('Missing Patient IDs', width='medium'),
+#     'missing_abg_tf': st.column_config.CheckboxColumn("Missing ABG"),
+#     'missing_konica_tf':st.column_config.CheckboxColumn('Missing Konica')},hide_index=True)
 
 st.write('Number of sessions:', len(qc_status))
 
@@ -287,6 +305,7 @@ if pd.notnull(selected_session):
     st.session_state.qc_date_discrepancy = qc_status.loc[qc_status['session_id'] == selected_session, 'date_discrepancies_resolved'].values[0]
     st.session_state.qc_id_discrepancy = qc_status.loc[qc_status['session_id'] == selected_session, 'id_discrepancies_resolved'].values[0]
     st.session_state.qc_quality = qc_status.loc[qc_status['session_id'] == selected_session, 'data_quality_checked'].values[0]
+    st.session_state.qc_data_qualtiy_action = qc_status.loc[qc_status['session_id'] == selected_session, 'data_quality_action'].values[0]
     # check if nan and set to empty string otherwise set to value
     if pd.isna(qc_status.loc[qc_status['session_id'] == selected_session, 'data_quality_notes'].values[0]):
         st.session_state.qc_quality_notes = ''
@@ -368,6 +387,7 @@ if pd.notnull(selected_session):
         
         st.markdown('### Data Quality Check')
         st.checkbox('Data quality checked (no bad points)', key='qc_quality')
+        st.checkbox('Needs further review or action', key='qc_data_qualtiy_action')
         one, two = st.columns(2)
         with one:
             st.write(f'''
@@ -377,15 +397,17 @@ if pd.notnull(selected_session):
          ''')
             
         with two:
-            st.write('ARMS calculations:')
+            frame = create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0]
+            st.write('**Max bias:**', frame['bias'].abs().max())
+            st.write('**ARMS calculations:**')
             if not pd.isna(df.loc[df['session_id'] == selected_session, 'arms'].values[0]):    
                 for value in df.loc[df['session_id'] == selected_session, 'arms'].values[0].items():
                     st.write(value[0], round(value[1],2))
-            st.text_input('Data quality notes', key='qc_quality_notes')
+            st.text_area('Data quality notes', key='qc_quality_notes')
 
 
         plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
-        st.plotly_chart(create_plot(create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0], plotcolumns, limit_to_manual_sessions), use_container_width=True)
+        st.plotly_chart(create_plot(frame, plotcolumns), use_container_width=True)
         st.dataframe(create_subset_frame(labview_samples, selected_session)[0].set_index('sample')
                     .drop(columns=['sample_diff_prev',
                                     'sample_diff_next',
