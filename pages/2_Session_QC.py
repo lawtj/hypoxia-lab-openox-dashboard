@@ -10,6 +10,8 @@ import os
 import openox as ox
 from session_functions import colormap
 
+st.set_page_config(page_title='Session Quality Control', layout='wide')
+
 @st.cache_data
 def getdf():
     api_url = 'https://redcap.ucsf.edu/api/'
@@ -31,6 +33,23 @@ def get_qc_status():
 
 qc_status = get_qc_status()
 
+def label_manual_samples(labview_samples, drop_dict):
+    # label samples to be dropped
+    for session, samples in drop_dict.items():
+        labview_samples.loc[(labview_samples['session'] == session), 'manual_so2'] = 'keep'
+        labview_samples.loc[(labview_samples['session'] == session) & (labview_samples['sample'].isin(samples)), 'manual_so2'] = 'reject'
+    # now compare the manual_so2 column with the algo column
+    labview_samples['manual_algo_compare'] = None
+    # start with the samples that were rejected by the manual_so2 column but kept by the algo column
+    labview_samples.loc[(labview_samples['manual_so2'] == 'reject') & (labview_samples['so2_stable'] == True),'manual_algo_compare'] = 'manual reject'
+    # now the samples that were kept by the manual_so2 column but rejected by the algo column
+    labview_samples.loc[(labview_samples['manual_so2'] == 'keep') & (labview_samples['so2_stable'] == False),'manual_algo_compare'] = 'manual keep'
+    # label keep both
+    labview_samples.loc[(labview_samples['manual_so2'] == 'keep') & (labview_samples['so2_stable'] == True),'manual_algo_compare'] = 'keep (both)'
+    # label reject both
+    labview_samples.loc[(labview_samples['manual_so2'] == 'reject') & (labview_samples['so2_stable'] == False),'manual_algo_compare'] = 'reject (both)'
+    return labview_samples
+
 @st.cache_data
 def get_labview_samples():
     api_url = 'https://redcap.ucsf.edu/api/'
@@ -41,6 +60,9 @@ def get_labview_samples():
     proj = Project(api_url, api_k)
     f = io.BytesIO(proj.export_file(record='8', field='file')[0])
     labview_samples = pd.read_csv(f)
+
+    from exclude_unclean import drop_dict
+    labview_samples = label_manual_samples(labview_samples, drop_dict)
     return labview_samples
 
 labview_samples = get_labview_samples()
@@ -94,9 +116,10 @@ def create_subset_frame(labview_samples, selected_session, show_cleaned=False):
     return frame, criteria_check_tuple, criteria_check_df
 
 
-def create_plot(frame, plotcolumns):
+def create_plot(frame, plotcolumns, limit_to_manual_sessions=False):
     fig = go.Figure()
     for column in plotcolumns:
+        visiblestatus = True if column in ['so2', 'Nellcor/SpO2','bias'] else 'legendonly'
         fig.add_trace(go.Scatter(
             x=frame['sample'], y=frame[column],
             mode='markers',
@@ -107,8 +130,15 @@ def create_plot(frame, plotcolumns):
                 size=12,
                 opacity=0.8,
                 line=dict(width=1.5, color=frame[column + '_line'])
-            ),
+            ), visible=visiblestatus,
         ))
+    if limit_to_manual_sessions:
+        # add text labeling points for manual_algo_compare
+        for index, row in frame.iterrows():
+            if row['manual_algo_compare'] == 'manual reject':
+                fig.add_annotation(x=row['sample'], y=row['so2']+10, text='manual reject', showarrow=True)
+            if row['manual_algo_compare'] == 'manual keep':
+                fig.add_annotation(x=row['sample'], y=row['so2'], text='manual keep', showarrow=True)
     return fig
 
 def update_qc_field(df, session_id, ):
@@ -147,18 +177,6 @@ qc_incomplete_sessions_list = qc_status[qc_status['qc_complete'] == 0]['session_
 
 show_qc_status = st.selectbox('Select QC Status', ['Incomplete', 'Complete'])
 
-# left, right = st.columns(2)
-
-# with left:
-#     show_date_issues = st.checkbox('Show sessions with date discrepancies', value=False)
-#     show_missing_dates = st.checkbox('Show sessions with missing dates', value=False)
-#     show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=True)
-
-# with right:
-#     show_missing_ptids = st.checkbox('Show sessions with missing patient IDs', value=False)
-#     show_missing_abgs = st.checkbox('Show sessions with missing ABG data', value=False)
-#     show_missing_konica = st.checkbox('Show sessions with missing Konica data', value=False)
-dfstats = df.copy()
 qcstats = qc_status.copy()
 
 left, right = st.columns(2)
@@ -169,6 +187,48 @@ with left:
 with right:
     show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=False)
     show_data_quality_issues = st.checkbox('Show sessions with data quality issues', value=False)
+
+with st.sidebar:
+    filter_by_bias = st.toggle('Filter by bias', value=False)
+    if filter_by_bias:
+        max_bias = st.number_input('Show sessions where maximum bias is >= :', 0, 20, 10, 1)
+    else:
+        max_bias = 10
+    show_cleaned = st.toggle('Show cleaned out points', value=False, key='show_cleaned')
+    limit_to_manual_sessions = st.toggle('Limit to manual sessions', value=False)
+
+    if limit_to_manual_sessions:
+        #calculate stats on sessions that were manually reviewed
+        manual_stats_df = labview_samples[labview_samples['manual_so2'].notnull()]
+        st.write(manual_stats_df['manual_algo_compare'].value_counts(normalize=True).mul(100).round(2).astype(str) + '%')
+    
+
+    qcstats_summary = {
+    "Metric": [
+        "Total number of sessions",
+        "Number of sessions with session note issues",
+        "Number of sessions with missing files",
+        "Number of sessions with date discrepancies",
+        "Number of sessions with patient ID discrepancies",
+        "Number of sessions with data quality issues",
+        "Number of sessions with QC incomplete",
+        "Number of sessions with QC complete"
+    ],
+    "Count": [
+        len(qcstats),
+        len(qcstats[qcstats['session_notes_addressed'] == False]),
+        len(qcstats[qcstats['missing_files_resolved'] == False]),
+        len(qcstats[qcstats['date_discrepancies_resolved'] == False]),
+        len(qcstats[qcstats['id_discrepancies_resolved'] == False]),
+        len(qcstats[qcstats['data_quality_checked'] == False]),
+        len(qcstats[qcstats['qc_complete'] == 0]),
+        len(qcstats[qcstats['qc_complete'] == 1])
+    ]}
+    # Convert the summary to a DataFrame
+    qcstats_summary_df = pd.DataFrame(qcstats_summary).set_index("Metric")
+
+    # Display the summary as a table
+    st.table(qcstats_summary_df)
 
 
 # Filtering logic based on qc status
@@ -191,35 +251,28 @@ else:
         mask &= qc_status['qc_complete'] == 1
     elif show_qc_status == 'Incomplete':
         mask &= qc_status['qc_complete'] == 0
-    
     qc_status = qc_status[mask]
 
-# # Filtering logic
-# if not show_date_issues and not show_ptid_issues and not show_missing_dates and not show_missing_ptids and not show_missing_abgs and not show_missing_konica and show_qc_status == 'All':
-#     df = df  # Show all data if no filter is selected and QC status is 'All'
-# else:
-#     # Create masks based on user selection
-#     mask = pd.Series([True] * len(df))  # Initialize mask to True
-#     if show_date_issues:
-#         mask &= df['date_issues_tf']  # Update mask for date issues
-#     if show_ptid_issues:
-#         mask &= df['patient_id_issues_tf']  # Update mask for patient ID issues
-#     if show_missing_dates:
-#         mask &= df['missing_dates_tf']
-#     if show_missing_ptids:
-#         mask &= df['missing_ptids_tf']
-#     if show_missing_abgs:
-#         mask &= df['missing_abg_tf']
-#     if show_missing_konica:
-#         mask &= df['missing_konica_tf']
-    
-#     # Apply QC status filter
-#     if show_qc_status == 'Complete':
-#         mask &= df['session_id'].isin(qc_complete_sessions_list)
-#     elif show_qc_status == 'Incomplete':
-#         mask &= df['session_id'].isin(qc_incomplete_sessions_list)
+if filter_by_bias:
+    # get labview_samples sessions with max bias >= max_bias
+    biased_sessions = labview_samples[(abs(labview_samples['bias']) >= max_bias) & (labview_samples['so2_stable']==True) & (labview_samples['Nellcor_stable']==True)]['session'].unique().tolist()    
+    qc_status = qc_status[qc_status['session_id'].isin(biased_sessions)]
 
-#     df = df[mask]  # Apply the mask
+if limit_to_manual_sessions:
+    set1 = set(qc_status['session_id'].unique().tolist())
+    set2 = set(labview_samples[labview_samples['manual_so2'] == 'reject']['session'].unique().tolist())
+    manualsessionlist = list(set1.intersection(set2))
+    qc_status = qc_status[qc_status['session_id'].isin(manualsessionlist)]
+
+st.dataframe(qc_status[['session_id','session_notes_addressed','missing_files_resolved','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
+    "session_notes_addressed": st.column_config.CheckboxColumn("Session Notes", width='small'),
+    "missing_files_resolved": st.column_config.CheckboxColumn("Missing Files", width='small'),
+    "date_discrepancies_resolved": st.column_config.CheckboxColumn("Date Discrepancies", width='small'),
+    "id_discrepancies_resolved": st.column_config.CheckboxColumn("Patient ID Discrepancies", width='small'),
+    "data_quality_checked": st.column_config.CheckboxColumn("Data Quality", width='small'),
+    "qc_complete": st.column_config.CheckboxColumn("QC Complete", width='small')}, hide_index=True)
+
+st.write('Number of sessions:', len(qc_status))
 
 selected_session = st.selectbox('Select Session ID', qc_status['session_id'].sort_values(ascending=False), key='selected_session')
 
@@ -242,51 +295,6 @@ if pd.notnull(selected_session):
     st.session_state.qc_complete = qc_status.loc[qc_status['session_id'] == selected_session, 'qc_complete'].values[0]
 
     ####################### layout #######################
-
-    # st.dataframe(df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_abg_tf','missing_konica_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
-    #     "session_notes": st.column_config.TextColumn("Session Notes", width='medium'),
-    #     "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
-    #     "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small'),
-    #     'missing_ptids': st.column_config.ListColumn('Missing Patient IDs', width='medium'),
-    #     'missing_abg_tf': st.column_config.CheckboxColumn("Missing ABG"),
-    #     'missing_konica_tf':st.column_config.CheckboxColumn('Missing Konica')},hide_index=True)
-
-    st.dataframe(qc_status[['session_id','session_notes_addressed','missing_files_resolved','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
-        "session_notes_addressed": st.column_config.CheckboxColumn("Session Notes", width='small'),
-        "missing_files_resolved": st.column_config.CheckboxColumn("Missing Files", width='small'),
-        "date_discrepancies_resolved": st.column_config.CheckboxColumn("Date Discrepancies", width='small'),
-        "id_discrepancies_resolved": st.column_config.CheckboxColumn("Patient ID Discrepancies", width='small'),
-        "data_quality_checked": st.column_config.CheckboxColumn("Data Quality", width='small'),
-        "qc_complete": st.column_config.CheckboxColumn("QC Complete", width='small')}, hide_index=True)
-
-    with st.sidebar:
-        max_bias = st.number_input('Highlight points where maximum bias is >= :', 0, 20, 10, 1)
-        show_cleaned = st.checkbox('Show cleaned out points', value=False, key='show_cleaned')
-        show_masimo = st.checkbox('Show Masimo data', value=True, key='show_masimo')
-
-
-        if st.session_state.show_masimo:
-            plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
-        else:
-            plotcolumns = ['so2', 'Nellcor/SpO2','bias']
-
-        # st.write('Total number of sessions:', len(dfstats))
-        # st.write('Number of sessions with date discrepancies:', len(dfstats[dfstats['date_issues_tf']]))
-        # st.write('Number of sessions with patient ID discrepancies:', len(dfstats[dfstats['patient_id_issues_tf']]))
-        # st.write('Number of sessions with missing ABG data:', len(dfstats[dfstats['missing_abg_tf']]))
-        # st.write('Number of sessions with missing Konica data:', len(dfstats[dfstats['missing_konica_tf']]))
-
-        # redo this for qcstats
-        st.write('Total number of sessions:', len(qcstats))
-        st.write('Number of sessions with session note issues:', len(qcstats[qcstats['session_notes_addressed'] == False]))
-        st.write('Number of sessions with missing files:', len(qcstats[qcstats['missing_files_resolved'] == False]))
-        st.write('Number of sessions with date discrepancies:', len(qcstats[qcstats['date_discrepancies_resolved'] == False]))
-        st.write('Number of sessions with patient ID discrepancies:', len(qcstats[qcstats['id_discrepancies_resolved'] == False]))
-        st.write('Number of sessions with data quality issues:', len(qcstats[qcstats['data_quality_checked'] == False]))
-        st.write('Number of sessions with QC incomplete:', len(qcstats[qcstats['qc_complete'] == 0]))
-        st.write('Number of sessions with QC complete:', len(qcstats[qcstats['qc_complete'] == 1
-        ]))
-
 
     st.markdown(f'## Session {selected_session}')
 
@@ -360,14 +368,24 @@ if pd.notnull(selected_session):
         
         st.markdown('### Data Quality Check')
         st.checkbox('Data quality checked (no bad points)', key='qc_quality')
-        st.write('ARMS calculations:')
-        if not pd.isna(df.loc[df['session_id'] == selected_session, 'arms'].values[0]):    
-            for value in df.loc[df['session_id'] == selected_session, 'arms'].values[0].items():
-                st.write(value[0], round(value[1],2))
+        one, two = st.columns(2)
+        with one:
+            st.write(f'''
+         * Crosses indicate that the data point was rejected by the algorithm (either so2 or Nellcor). 
+         * Nellcor: Red outlines indicate Nellcor values where the bias is > {max_bias}, but were not cleaned out.
+        * Bias: Blue outlines indicate bias values > {max_bias}.
+         ''')
+            
+        with two:
+            st.write('ARMS calculations:')
+            if not pd.isna(df.loc[df['session_id'] == selected_session, 'arms'].values[0]):    
+                for value in df.loc[df['session_id'] == selected_session, 'arms'].values[0].items():
+                    st.write(value[0], round(value[1],2))
+            st.text_input('Data quality notes', key='qc_quality_notes')
 
-        st.text_input('Data quality notes', key='qc_quality_notes')
 
-        st.plotly_chart(create_plot(create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0], plotcolumns), use_container_width=True)
+        plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
+        st.plotly_chart(create_plot(create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0], plotcolumns, limit_to_manual_sessions), use_container_width=True)
         st.dataframe(create_subset_frame(labview_samples, selected_session)[0].set_index('sample')
                     .drop(columns=['sample_diff_prev',
                                     'sample_diff_next',
