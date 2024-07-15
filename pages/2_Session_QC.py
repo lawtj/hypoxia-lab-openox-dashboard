@@ -188,7 +188,7 @@ with left:
 with right:
     show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=False)
     show_data_quality_issues = st.checkbox('Show sessions with data quality issues', value=False)
-    show_data_quality_action = st.checkbox('Show sessions that require data action/further data review', value=False)
+    show_data_quality_action = st.toggle('Limit to sessions that require data action/further data review', value=False)
 
 with st.sidebar:
     filter_by_bias = st.toggle('Filter by bias', value=False)
@@ -251,6 +251,8 @@ else:
         mask &= qc_status['data_quality_checked'] == False
     if show_data_quality_action:
         mask &= qc_status['data_quality_action'] == True
+    else:
+        mask &= qc_status['data_quality_action'] == False
     if show_qc_status == 'Complete':
         mask &= qc_status['qc_complete'] == 1
     elif show_qc_status == 'Incomplete':
