@@ -188,6 +188,7 @@ with left:
 with right:
     show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=False)
     show_data_quality_issues = st.checkbox('Show sessions with data quality issues', value=False)
+    show_data_quality_action = st.checkbox('Show sessions that require data action/further data review', value=False)
 
 with st.sidebar:
     filter_by_bias = st.toggle('Filter by bias', value=False)
@@ -248,6 +249,8 @@ else:
         mask &= qc_status['id_discrepancies_resolved'] == False
     if show_data_quality_issues:
         mask &= qc_status['data_quality_checked'] == False
+    if show_data_quality_action:
+        mask &= qc_status['data_quality_action'] == True
     if show_qc_status == 'Complete':
         mask &= qc_status['qc_complete'] == 1
     elif show_qc_status == 'Incomplete':
@@ -271,7 +274,7 @@ dfm['missing_konica_tf'] = ~dfm['missing_konica_tf']
 qc_display = qc_status.merge(dfm, on='session_id', how='left')
 
 
-st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
+st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','data_quality_action','data_quality_notes','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
     "session_notes_addressed": st.column_config.CheckboxColumn("Session Notes", width='small'),
     'missing_abg_tf': st.column_config.CheckboxColumn("ABG file resolved", width='small'),
     'missing_konica_tf': st.column_config.CheckboxColumn("Konica file resolved", width='small'),
@@ -279,6 +282,8 @@ st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed',
     "date_discrepancies_resolved": st.column_config.CheckboxColumn("Date Discrepancies", width='small'),
     "id_discrepancies_resolved": st.column_config.CheckboxColumn("Patient ID Discrepancies", width='small'),
     "data_quality_checked": st.column_config.CheckboxColumn("Data Quality", width='small'),
+    "data_quality_notes": st.column_config.TextColumn("Data Quality Notes", width='medium'),
+    "data_quality_action": st.column_config.CheckboxColumn("Requires Data Action", width='small'),
     "qc_complete": st.column_config.CheckboxColumn("QC Complete", width='small')}, hide_index=True)
 
 
@@ -407,7 +412,7 @@ if pd.notnull(selected_session):
 
 
         plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
-        st.plotly_chart(create_plot(frame, plotcolumns), use_container_width=True)
+        st.plotly_chart(create_plot(frame, plotcolumns, limit_to_manual_sessions), use_container_width=True)
         st.dataframe(create_subset_frame(labview_samples, selected_session)[0].set_index('sample')
                     .drop(columns=['sample_diff_prev',
                                     'sample_diff_next',
