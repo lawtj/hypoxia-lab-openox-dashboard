@@ -101,7 +101,7 @@ def assign_marker_style(name_keep):
         return 'cross'
 
 
-colormap = {'Masimo 97/SpO2': ('IndianRed', 'circle'),
+colormap = {'Masimo 97/SpO2': ('magenta', 'circle'),
             'masimo_bias': ('IndianRed', 'circle'),
             'Nellcor/SpO2': ('palegreen', 'circle'),
             'Nellcor_stable': ('palegreen', 'circle'),
