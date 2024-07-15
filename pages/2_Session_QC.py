@@ -12,7 +12,7 @@ from session_functions import colormap
 
 st.set_page_config(page_title='Session Quality Control', layout='wide')
 
-@st.cache_data
+@st.cache_data(ttl='1d')
 def getdf():
     api_url = 'https://redcap.ucsf.edu/api/'
     api_k = st.secrets['api_k']
