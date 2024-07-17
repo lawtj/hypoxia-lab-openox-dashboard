@@ -299,7 +299,7 @@ st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed',
 
 st.write('Number of sessions:', len(qc_status))
 
-selected_session = st.selectbox('Select Session ID', qc_status['session_id'].sort_values(ascending=False), key='selected_session')
+selected_session = st.selectbox('Select Session ID', qc_status['session_id'].sort_values(ascending=True), key='selected_session')
 
 if pd.notnull(selected_session):
     datesdict = df.loc[df['session_id'] == selected_session,'dates'].values[0]
@@ -415,11 +415,11 @@ if pd.notnull(selected_session):
 
         plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
         st.plotly_chart(create_plot(frame, plotcolumns, limit_to_manual_sessions), use_container_width=True)
-        st.dataframe(create_subset_frame(labview_samples, selected_session)[0].set_index('sample')
+        st.dataframe(frame.set_index('sample')
                     .drop(columns=['sample_diff_prev',
                                     'sample_diff_next',
-                                    'Nellcor/SpO2_diff_prev',
-                                    'Nellcor/SpO2_diff_next',
+                                    # 'Nellcor/SpO2_diff_prev',
+                                    # 'Nellcor/SpO2_diff_next',
                                     'Masimo 97/SpO2_diff_prev',
                                     'Masimo 97/SpO2_diff_next',
                                     'so2_symbol',
@@ -427,6 +427,8 @@ if pd.notnull(selected_session):
                                     'bias_symbol',
                                     'so2_line',
                                     'Nellcor/SpO2_line',
+                                    'Masimo 97/SpO2_line',
+                                    'Masimo 97/SpO2_symbol',
                                     'bias_line']), use_container_width=True)
         
         st.markdown('### Final QC')
