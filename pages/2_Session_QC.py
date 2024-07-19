@@ -170,6 +170,7 @@ df['missing_ptids'] = df['patient_ids'].apply(lambda x: x['missing_data'])
 df['missing_ptids_tf'] = df['missing_ptids'].apply(lambda x: len(x)>0)
 df['missing_abg_tf'] = df['missing_ptids'].apply(lambda x: 'Blood Gas' in x)
 df['missing_konica_tf'] = df['missing_ptids'].apply(lambda x: 'Konica' in x)
+df['missing_labview_tf'] = df['missing_ptids'].apply(lambda x: 'Labview' in x)
 
 ####################### filters #######################
 
@@ -269,17 +270,19 @@ if limit_to_manual_sessions:
     set2 = set(labview_samples[labview_samples['manual_so2'] == 'reject']['session'].unique().tolist())
     manualsessionlist = list(set1.intersection(set2))
     qc_status = qc_status[qc_status['session_id'].isin(manualsessionlist)]
-dfm = df[df['session_id'].isin(qc_status['session_id'])][['session_id','session_notes','missing_abg_tf','missing_konica_tf']]
+dfm = df[df['session_id'].isin(qc_status['session_id'])][['session_id','session_notes','missing_abg_tf','missing_konica_tf','missing_labview_tf']]
 #invert the true false values for missing files
 dfm['missing_abg_tf'] = ~dfm['missing_abg_tf']
 dfm['missing_konica_tf'] = ~dfm['missing_konica_tf']
+dfm['missing_labview_tf'] = ~dfm['missing_labview_tf']
 qc_display = qc_status.merge(dfm, on='session_id', how='left')
 
 
-st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','data_quality_action','data_quality_notes','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
+st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','missing_labview_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','data_quality_action','data_quality_notes','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
     "session_notes_addressed": st.column_config.CheckboxColumn("Session Notes", width='small'),
     'missing_abg_tf': st.column_config.CheckboxColumn("ABG file resolved", width='small'),
     'missing_konica_tf': st.column_config.CheckboxColumn("Konica file resolved", width='small'),
+    'missing_labview_tf': st.column_config.CheckboxColumn("Labview file resolved", width='small'),
     "missing_files_resolved": st.column_config.CheckboxColumn("Missing Files", width='small'),
     "date_discrepancies_resolved": st.column_config.CheckboxColumn("Date Discrepancies", width='small'),
     "id_discrepancies_resolved": st.column_config.CheckboxColumn("Patient ID Discrepancies", width='small'),
@@ -343,12 +346,15 @@ if pd.notnull(selected_session):
 
             missing_abg = df.loc[df['session_id']==selected_session,'missing_abg_tf'].values[0]
             missing_konica = df.loc[df['session_id']==selected_session,'missing_konica_tf'].values[0]
+            missing_labview = df.loc[df['session_id']==selected_session,'missing_labview_tf'].values[0]
 
             if missing_abg:
                 st.error('Missing ABG file')
             if missing_konica:
                 st.error('Missing Konica file')
-            if not missing_abg and not missing_konica:
+            if missing_labview:
+                st.error('Missing Labview file')
+            if not missing_abg and not missing_konica and not missing_labview:
                 st.success('No missing files found', icon="✅")
 
             
