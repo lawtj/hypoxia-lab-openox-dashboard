@@ -67,6 +67,17 @@ def get_labview_samples():
 
 labview_samples = get_labview_samples()
 
+# Function to safely evaluate the string into a dictionary
+def safe_literal_eval(val):
+    if val == '{}':
+        return {}
+    try:
+        return ast.literal_eval(val)
+    except (ValueError, SyntaxError):
+        return val
+
+armsdict = {row['session_id']: safe_literal_eval(row['arms']) for index, row in df.iterrows() if pd.notnull(row['arms'])}
+
 def create_subset_frame(labview_samples, selected_session, show_cleaned=False):
     frame = labview_samples[labview_samples['session'] == selected_session]
     frame = frame.drop(columns=['session'])
@@ -180,24 +191,46 @@ qc_incomplete_sessions_list = qc_status[qc_status['qc_complete'] == 0]['session_
 show_qc_status = st.selectbox('Select QC Status', ['Incomplete', 'Complete'])
 
 qcstats = qc_status.copy()
+combine_logic = st.toggle('Show matches that meet ANY of the filter criteria', value=False)
 
 left, right = st.columns(2)
 with left:
-    show_session_note_issues = st.checkbox('Show sessions with session note issues', value=False)
-    show_missing_file_issues = st.checkbox('Show sessions with missing files', value=False)
-    show_date_issues = st.checkbox('Show sessions with date discrepancies', value=False)
+    show_session_note_issues = st.toggle('Show sessions with session note issues', value=False)
+    show_missing_file_issues = st.toggle('Show sessions with missing files', value=False)
+    show_date_issues = st.toggle('Show sessions with date discrepancies', value=False)
 with right:
-    show_ptid_issues = st.checkbox('Show sessions with patient ID discrepancies', value=False)
-    show_data_quality_issues = st.checkbox('Show sessions with data quality issues', value=False)
+    show_ptid_issues = st.toggle('Show sessions with patient ID discrepancies', value=False)
+    show_data_quality_issues = st.toggle('Show sessions with data quality issues', value=False)
     show_data_quality_action = st.toggle('Limit to sessions that require data action/further data review', value=False)
 
 with st.sidebar:
+
     filter_by_bias = st.toggle('Filter by bias', value=False)
     if filter_by_bias:
-        max_bias = st.number_input('Show sessions where maximum bias is >= :', 0, 20, 10, 1)
+        st.write('Show sessions where bias is:')
+        left, right = st.columns(2)
+        with left:
+            bias_comparison = st.selectbox('label', ['>=', '<='], label_visibility='collapsed')
+        with right:
+            max_bias = st.number_input('collapsed', 0, 20, 10, 1, label_visibility='collapsed')
     else:
         max_bias = 10
+        bias_comparison = '>='  # Default to a non-effective comparison
+
+    filter_by_nellcor_arms = st.toggle('Filter by Nellcor ARMS', value=False)
+    if filter_by_nellcor_arms:
+        st.write('Show sessions where Nellcor ARMS is:')
+        left, right = st.columns(2)
+        with left:
+            arms_comparison = st.selectbox('Select comparison for Nellcor ARMS:', ['>=', '<='], label_visibility='collapsed')
+        with right:
+            max_arms = st.number_input('Show sessions where Nellcor ARMS is:', 0, 20, 3, 1, label_visibility='collapsed')
+    else:
+        max_arms = 3
+        arms_comparison = '<='  # Default to a non-effective comparison
+
     show_cleaned = st.toggle('Show cleaned out points', value=False, key='show_cleaned')
+
     limit_to_manual_sessions = st.toggle('Limit to manual sessions', value=False)
 
     if limit_to_manual_sessions:
@@ -235,21 +268,50 @@ with st.sidebar:
 
 
 # Filtering logic based on qc status
-if not show_session_note_issues and not show_missing_file_issues and not show_date_issues and not show_ptid_issues and not show_data_quality_issues and show_qc_status == 'All':
-    qc_status = qc_status  # Show all data if no filter is selected and QC status is 'All'
-else:
-    # Create masks based on user selection
+
+if combine_logic:  # OR logic
+    mask = pd.Series([False] * len(qc_status))
+    if show_session_note_issues:
+        mask |= qc_status['session_notes_addressed'] == False
+    if show_missing_file_issues:
+        mask |= qc_status['missing_files_resolved'] == False
+    if show_date_issues:
+        mask |= qc_status['date_discrepancies_resolved'] == False
+    if show_ptid_issues:
+        mask |= qc_status['id_discrepancies_resolved'] == False
+    if show_data_quality_issues:
+        mask |= qc_status['data_quality_checked'] == False
+    if show_data_quality_action:
+        mask &= qc_status['data_quality_action'] == True
+    else:
+        mask &= qc_status['data_quality_action'] == False
+
+    if show_qc_status == 'Complete':
+        mask &= qc_status['qc_complete'] == 1
+    elif show_qc_status == 'Incomplete':
+        mask &= qc_status['qc_complete'] == 0
+else:  # AND logic
     mask = pd.Series([True] * len(qc_status))
     if show_session_note_issues:
         mask &= qc_status['session_notes_addressed'] == False
+    else:
+        mask &= qc_status['session_notes_addressed'] == True
     if show_missing_file_issues:
         mask &= qc_status['missing_files_resolved'] == False
+    else:
+        mask &= qc_status['missing_files_resolved'] == True
     if show_date_issues:
-        mask &= qc_status['date_discrepancies_resolved'] ==False
+        mask &= qc_status['date_discrepancies_resolved'] == False
+    else:
+        mask &= qc_status['date_discrepancies_resolved'] == True
     if show_ptid_issues:
         mask &= qc_status['id_discrepancies_resolved'] == False
+    else:
+        mask &= qc_status['id_discrepancies_resolved'] == True
     if show_data_quality_issues:
         mask &= qc_status['data_quality_checked'] == False
+    else:
+        mask &= qc_status['data_quality_checked'] == True
     if show_data_quality_action:
         mask &= qc_status['data_quality_action'] == True
     else:
@@ -258,12 +320,24 @@ else:
         mask &= qc_status['qc_complete'] == 1
     elif show_qc_status == 'Incomplete':
         mask &= qc_status['qc_complete'] == 0
-    qc_status = qc_status[mask]
 
+qc_status = qc_status[mask]
+
+
+# Updated Filter Logic
 if filter_by_bias:
-    # get labview_samples sessions with max bias >= max_bias
-    biased_sessions = labview_samples[(abs(labview_samples['bias']) >= max_bias) & (labview_samples['so2_stable']==True) & (labview_samples['Nellcor_stable']==True)]['session'].unique().tolist()    
+    if bias_comparison == '>=':
+        biased_sessions = labview_samples[(abs(labview_samples['bias']) >= max_bias) & (labview_samples['so2_stable'] == True) & (labview_samples['Nellcor_stable'] == True)]['session'].unique().tolist()
+    else:
+        biased_sessions = labview_samples[(abs(labview_samples['bias']) <= max_bias) & (labview_samples['so2_stable'] == True) & (labview_samples['Nellcor_stable'] == True)]['session'].unique().tolist()
     qc_status = qc_status[qc_status['session_id'].isin(biased_sessions)]
+
+if filter_by_nellcor_arms:
+    if arms_comparison == '>=':
+        high_arms_sessions = [key for key, value in armsdict.items() if 'Nellcor/SpO2' in value and value['Nellcor/SpO2'] >= max_arms]
+    else:
+        high_arms_sessions = [key for key, value in armsdict.items() if 'Nellcor/SpO2' in value and value['Nellcor/SpO2'] <= max_arms]
+    qc_status = qc_status[qc_status['session_id'].isin(high_arms_sessions)]
 
 if limit_to_manual_sessions:
     set1 = set(qc_status['session_id'].unique().tolist())
@@ -411,7 +485,7 @@ if pd.notnull(selected_session):
             
         with two:
             frame = create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0]
-            st.write('**Max bias:**', frame['bias'].abs().max())
+            st.write('**Max bias:**', round(frame['bias'].abs().max(),2))
             st.write('**ARMS calculations:**')
             if not pd.isna(df.loc[df['session_id'] == selected_session, 'arms'].values[0]):    
                 for value in df.loc[df['session_id'] == selected_session, 'arms'].values[0].items():
