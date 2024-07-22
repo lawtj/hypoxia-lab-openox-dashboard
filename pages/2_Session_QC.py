@@ -130,7 +130,7 @@ def create_subset_frame(labview_samples, selected_session, show_cleaned=False):
 def create_plot(frame, plotcolumns, limit_to_manual_sessions=False):
     fig = go.Figure()
     for column in plotcolumns:
-        visiblestatus = True if column in ['so2', 'Nellcor/SpO2','bias'] else 'legendonly'
+        visiblestatus = True if column in ['so2', 'Nellcor/SpO2'] else 'legendonly'
         fig.add_trace(go.Scatter(
             x=frame['sample'], y=frame[column],
             mode='markers',
@@ -350,7 +350,6 @@ dfm['missing_abg_tf'] = ~dfm['missing_abg_tf']
 dfm['missing_konica_tf'] = ~dfm['missing_konica_tf']
 dfm['missing_labview_tf'] = ~dfm['missing_labview_tf']
 qc_display = qc_status.merge(dfm, on='session_id', how='left')
-
 
 st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','missing_labview_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','data_quality_action','data_quality_notes','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
     "session_notes_addressed": st.column_config.CheckboxColumn("Session Notes", width='small'),
