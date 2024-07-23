@@ -394,19 +394,20 @@ session_list = qc_status['session_id'].sort_values(ascending=True).tolist()
 with left:
     selected_session = st.selectbox('Select Session ID', session_list, key='selected_session')
 
-    index = session_list.index(selected_session)
-    next_session = session_list[index+1] if index < len(session_list)-1 else None
-    previous_session = session_list[index-1] if index > 0 else None
+    if pd.notnull(selected_session):
+        index = session_list.index(selected_session)
+        next_session = session_list[index+1] if index < len(session_list)-1 else None
+        previous_session = session_list[index-1] if index > 0 else None
 
-with right:
-    if next_session:
-        next_button = st.button('Next session', key='next', on_click=on_click_next)
-    else:
-        st.write('No next session')
-    if previous_session:
-        previous_button = st.button('Previous session', key='previous', on_click=on_click_previous)
-    else:
-        st.write('No previous session')
+        with right:
+            if next_session:
+                next_button = st.button('Next session', key='next', on_click=on_click_next)
+            else:
+                st.write('No next session')
+            if previous_session:
+                previous_button = st.button('Previous session', key='previous', on_click=on_click_previous)
+            else:
+                st.write('No previous session')
     
 
 ##### 
