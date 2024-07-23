@@ -152,6 +152,12 @@ def create_plot(frame, plotcolumns, limit_to_manual_sessions=False):
                 fig.add_annotation(x=row['sample'], y=row['so2'], text='manual keep', showarrow=True)
     return fig
 
+
+def on_click_next():
+    st.session_state['selected_session'] = next_session
+def on_click_previous():
+    st.session_state['selected_session'] = previous_session
+
 def update_qc_field(df, session_id, ):
     # first, check if qc_complete is True, but if any of the other fields are False, then qc_complete should be False
     if st.session_state.qc_complete and not all([st.session_state.qc_notes, st.session_state.qc_missing, st.session_state.qc_date_discrepancy, st.session_state.qc_id_discrepancy, st.session_state.qc_quality]):
@@ -172,6 +178,9 @@ def update_qc_field(df, session_id, ):
     proj.import_records(update_df, import_format='df')
     qc_message.success('QC status updated', icon='✅')
     qc_message.caption(pd.Timestamp.now())
+    on_click_next()
+
+
 ####################### title #######################
 
 st.title('Session Quality Control')
@@ -375,7 +384,32 @@ st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed',
 
 st.write('Number of sessions:', len(qc_status))
 
-selected_session = st.selectbox('Select Session ID', qc_status['session_id'].sort_values(ascending=True), key='selected_session')
+
+
+#### navigation buttons
+
+left, middle, right = st.columns(3)
+session_list = qc_status['session_id'].sort_values(ascending=True).tolist()
+
+with left:
+    selected_session = st.selectbox('Select Session ID', session_list, key='selected_session')
+
+    index = session_list.index(selected_session)
+    next_session = session_list[index+1] if index < len(session_list)-1 else None
+    previous_session = session_list[index-1] if index > 0 else None
+
+with right:
+    if next_session:
+        next_button = st.button('Next session', key='next', on_click=on_click_next)
+    else:
+        st.write('No next session')
+    if previous_session:
+        previous_button = st.button('Previous session', key='previous', on_click=on_click_previous)
+    else:
+        st.write('No previous session')
+    
+
+##### 
 
 if pd.notnull(selected_session):
     datesdict = df.loc[df['session_id'] == selected_session,'dates'].values[0]
