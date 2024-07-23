@@ -176,7 +176,7 @@ def update_qc_field(df, session_id, ):
     update_df['data_quality_notes'] = st.session_state.qc_quality_notes
     update_df['data_quality_action'] = st.session_state.qc_data_qualtiy_action
     proj.import_records(update_df, import_format='df')
-    qc_message.success('QC status updated', icon='✅')
+    qc_message.success(f'Session {selected_session}: QC status updated', icon='✅')
     qc_message.caption(pd.Timestamp.now())
     on_click_next()
 
@@ -335,11 +335,14 @@ qc_status = qc_status[mask]
 
 # Updated Filter Logic
 if filter_by_bias:
+    max_bias_list = labview_samples[(labview_samples['so2_stable']==True) & (labview_samples['Nellcor_stable']==True)][['session','bias']].assign(abs_bias=lambda x: x['bias'].abs()).groupby('session').max()
     if bias_comparison == '>=':
-        biased_sessions = labview_samples[(abs(labview_samples['bias']) >= max_bias) & (labview_samples['so2_stable'] == True) & (labview_samples['Nellcor_stable'] == True)]['session'].unique().tolist()
+        biased_sessions = max_bias_list[max_bias_list['abs_bias'] >= max_bias].index.tolist()
     else:
-        biased_sessions = labview_samples[(abs(labview_samples['bias']) <= max_bias) & (labview_samples['so2_stable'] == True) & (labview_samples['Nellcor_stable'] == True)]['session'].unique().tolist()
+        biased_sessions = max_bias_list[max_bias_list['abs_bias'] <= max_bias].index.tolist()
+
     qc_status = qc_status[qc_status['session_id'].isin(biased_sessions)]
+
 
 if filter_by_nellcor_arms:
     if arms_comparison == '>=':
