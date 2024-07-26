@@ -50,7 +50,7 @@ def label_manual_samples(labview_samples, drop_dict):
     labview_samples.loc[(labview_samples['manual_so2'] == 'reject') & (labview_samples['so2_stable'] == False),'manual_algo_compare'] = 'reject (both)'
     return labview_samples
 
-@st.cache_data
+@st.cache_data(ttl='4h')
 def get_labview_samples():
     api_url = 'https://redcap.ucsf.edu/api/'
     try:
@@ -66,6 +66,7 @@ def get_labview_samples():
     return labview_samples
 
 labview_samples = get_labview_samples()
+
 
 # Function to safely evaluate the string into a dictionary
 def safe_literal_eval(val):
