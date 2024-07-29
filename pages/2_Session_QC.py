@@ -12,7 +12,8 @@ from session_functions import colormap
 
 st.set_page_config(page_title='Session Quality Control', layout='wide')
 
-@st.cache_data(ttl='4h')
+# this df is the automated QC check that runs with labview_samples
+@st.cache_data(ttl='1h')
 def getdf():
     api_url = 'https://redcap.ucsf.edu/api/'
     api_k = st.secrets['api_k']
@@ -23,6 +24,7 @@ def getdf():
 
 df = getdf()
 
+#QC status is the manual QC review
 def get_qc_status():
     api_url = 'https://redcap.ucsf.edu/api/'
     api_k = st.secrets['REDCAP_QC']
@@ -50,7 +52,7 @@ def label_manual_samples(labview_samples, drop_dict):
     labview_samples.loc[(labview_samples['manual_so2'] == 'reject') & (labview_samples['so2_stable'] == False),'manual_algo_compare'] = 'reject (both)'
     return labview_samples
 
-@st.cache_data(ttl='4h')
+@st.cache_data(ttl='1h')
 def get_labview_samples():
     api_url = 'https://redcap.ucsf.edu/api/'
     try:
