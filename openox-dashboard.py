@@ -69,9 +69,10 @@ def highlight_value_greater(s, cols_to_sum, threshold):
 
 st.subheader('Choose a version of the standard to look at:')
 
-selected_df = st.radio('', ("ISO 2017/ FDA 2013", "ISO 2023/FDA 2024", "ISO 2024/FDA 2024"), index=2)
+selected_df = st.radio('', ("ISO 2017/ FDA 2013", "ISO 2023/FDA 2024", "ISO 2024/FDA 2024"), index=1)
 
 if selected_df == "ISO 2017/ FDA 2013":
+    db_old = db_old.copy()
     db_old.rename(columns=column_dict_db_old, inplace=True)
     st.dataframe(db_old
                  .style
@@ -103,6 +104,7 @@ if selected_df == "ISO 2017/ FDA 2013":
 
 if selected_df == "ISO 2023/FDA 2024":
     # style database
+    db_new_v1 = db_new_v1.copy()
     db_new_v1.rename(columns=column_dict_db_new_v1, inplace=True)
     st.dataframe(db_new_v1
             .style
@@ -131,8 +133,6 @@ if selected_df == "ISO 2023/FDA 2024":
             .map(lambda x: 'background-color: #b5e7a0' if x>=70 else "", subset=['%\n of Sessions Provides SaO2 in 70-80'])
 
             # Highlight if Each sex has approximately 40% percentage (assigned_sex)
-            # .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Female'])
-            # .apply(highlight_value_greater, cols_to_sum=['Female','Male'], threshold=.40, subset=['Male'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=9.6 else "", subset=['Female'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=9.6 else "", subset=['Male'])
 
@@ -140,20 +140,14 @@ if selected_df == "ISO 2023/FDA 2024":
             .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk Forehead'])
 
             # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10 (monk_forehead)
-            # .apply(highlight_value_greater,cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk ABCD'])
-            # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk EFG'])
-            # .apply(highlight_value_greater, cols_to_sum=['Monk ABCD','Monk EFG','Monk HIJ'], threshold=.25, subset=['Monk HIJ'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABCD'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
             
-            # Highlight if >= 25% in each of the following MST categories: 1-4(>25°), 5-7(>-35°, <=25°), 8-10(<=-35°) (monk_forehead & ita_dorsal)
-            # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA > 25 & Monk ABCD'])
-            # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['-35 < ITA <= 25 & Monk EFG'])
-            # .apply(highlight_value_greater, cols_to_sum=['Unique Subjects'], threshold=.25, subset=['ITA <= -35 & Monk HIJ'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA > 25 & Monk ABCD'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-35 < ITA <= 25 & Monk EFG'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA <= -35 & Monk HIJ'])
+            # Highlight if >= 25% in each of the following MST categories: 1-4(>30°), 5-7(>-30°, <=30°), 8-10(<=-30°) (monk_forehead & ita_dorsal)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA > 30 & Monk ABCD'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-30 < ITA <= 30 & Monk EFG'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA <= -30 & Monk HIJ'])
 
             # Highlight if >=1 subject in category MST 1-4 with ITA >= 50° (monk_forehead & ita_dorsal)
             .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ITA >= 50 & Monk ABCD'])
@@ -174,6 +168,7 @@ if selected_df == "ISO 2023/FDA 2024":
     
 
 if selected_df == "ISO 2024/FDA 2024":
+    db_new_v2 = db_new_v2.copy()
     db_new_v2.rename(columns=column_dict_db_new_v2, inplace=True)
     
     # create a selectbox to choose a monk_forehead

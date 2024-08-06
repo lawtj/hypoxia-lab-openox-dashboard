@@ -1,8 +1,9 @@
 import hypoxialab_functions
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, message="The default of observed=False is deprecated and will be changed to True in a future version of pandas.")
+warnings.filterwarnings("ignore", category=FutureWarning, message="When grouping with a length-1 list-like, you will need to pass a length-1 tuple to get_group in a future version of pandas.")
 
 def joined_konica_session(session, konica):
     ########### Get the konica data #############
@@ -41,8 +42,6 @@ def monk_scatter(joined_konica_session, mscolors):
                 title='Monk vs ITA by Monk Color',
                 color_discrete_map=mscolors,
                 labels={"monk": "Monk"}).update_xaxes(title_text='Monk').update_yaxes(title_text='ITA', range=[-80, 80], dtick=20).update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
-                
-    # monk_scatter.add_trace(go.Scatter(x=['J'], y=[np.nan], name='J')) # if you insist on including the blank 'J' column :) # comment this out as we have a J now
     
     return monk_scatter
 
