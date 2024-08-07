@@ -46,6 +46,8 @@ def get_labview_samples():
     return labview_samples
 
 labview_samples = get_labview_samples()
+# only keep the samples with algo_status is True
+labview_samples = labview_samples[labview_samples['algo_status']]
 
 print_memory_usage("After loading data")
 
