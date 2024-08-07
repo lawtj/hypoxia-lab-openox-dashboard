@@ -59,8 +59,7 @@ one, two = st.columns(2)
 one.metric('Has Konica but not Monk', len(haskonica_notmonk))
 two.metric('Has Monk but not Konica', len(hasmonk_notkonica))
 
-st.write('Using Monk forehead. Using ITA dorsal (median) if device is fingertip.')
-st.write('SaO2 in 70-80 range -> 67-80')
+st.write('Using Monk forehead and ITA Forehead (median).')
 
 def highlight_value_greater(s, cols_to_sum, threshold):
     sums = db_new_v1[cols_to_sum].sum(axis=1)
