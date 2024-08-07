@@ -152,10 +152,10 @@ joined=joined[['patient_id','session_date','session','device','assigned_sex','do
 joined_updated = pd.merge(joined, labview_samples, on = ['session', 'sample'], how='inner')
 print_memory_usage("After merging labview_samples and joined")
 
-# remove encounters with fewer than 17 data points
+# remove encounters with fewer than 16 data points
 sample_count_by_session = joined_updated.groupby('session')['sample'].nunique()
-# select sessions with >=17 samples
-sessions_to_keep = sample_count_by_session[sample_count_by_session >= 17].index
+# select sessions with >=16 samples
+sessions_to_keep = sample_count_by_session[sample_count_by_session >= 16].index
 joined_updated = joined_updated[joined_updated['session'].isin(sessions_to_keep)]
 
 # %%
@@ -288,7 +288,7 @@ db = db.rename(columns={'manufacturer':'Manufacturer', 'model':'Model'})
 # db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # # check range of number of samples per session, if the session satistifes the criteria, label as 1
-# joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 17) & (x <= 30) else 0)
+# joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 16) & (x <= 30) else 0)
 # # count the number of unique patient that have sample_range = 1 per device
 # tdf = joined_updated[joined_updated['sample_range'] == 1].groupby(by=['device']).nunique()['patient_id'].reset_index()
 # tdf.rename(columns={'patient_id':'sample_range'}, inplace=True)
@@ -338,7 +338,7 @@ tdf['avg_sample'] = tdf['avg_sample'].round(2)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # check range of number of samples per session, if the session satistifes the criteria, label as 1
-joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 17) & (x <= 30) else 0)
+joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 16) & (x <= 30) else 0)
 # count the number of unique patient that have sample_range = 1 per device
 tdf = joined_updated[joined_updated['sample_range'] == 1].groupby(by=['device']).nunique()['patient_id'].reset_index()
 tdf.rename(columns={'patient_id':'sample_range'}, inplace=True)
@@ -447,7 +447,7 @@ column_dict_db_new_v1 = {'device':'Device',
                 'ita<=-50&MonkHIJ': 'ITA <= -50 & Monk HIJ',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
-                'sample_range':'Unique Subjects with 17-30 Samples',
+                'sample_range':'Unique Subjects with 16-30 Samples',
                 'so2<85':'%\n of Sessions Provides SaO2 < 85',
                 "min_sao2":'Min SaO2',
                 "max_sao2":'Max SaO2',
@@ -477,7 +477,7 @@ column_dict_db_new_v2 = {'device':'Device',
                 'unique_monk_dorsal':'Unique Monk Dorsal',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
-                'sample_range':'Unique Subjects with 17-30 Samples',
+                'sample_range':'Unique Subjects with 16-30 Samples',
                 "min_sao2":'Min SaO2',
                 "max_sao2":'Max SaO2',
                 'so2<85':'%\n of Sessions Provides SaO2 < 85',
