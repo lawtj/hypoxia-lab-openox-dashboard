@@ -203,16 +203,16 @@ qc_incomplete_sessions_list = qc_status[qc_status['qc_complete'] == 0]['session_
 show_qc_status = st.selectbox('Select QC Status', ['Incomplete', 'Complete'])
 
 qcstats = qc_status.copy()
-combine_logic = st.toggle('Show matches that meet ANY of the filter criteria', value=False)
+combine_logic = st.toggle('Show matches that meet ANY of the filter criteria', value=True)
 
 left, right = st.columns(2)
 with left:
-    show_session_note_issues = st.toggle('Show sessions with session note issues', value=False)
-    show_missing_file_issues = st.toggle('Show sessions with missing files', value=False)
-    show_date_issues = st.toggle('Show sessions with date discrepancies', value=False)
+    show_session_note_issues = st.toggle('Show sessions with session note issues', value=True)
+    show_missing_file_issues = st.toggle('Show sessions with missing files', value=True)
+    show_date_issues = st.toggle('Show sessions with date discrepancies', value=True)
 with right:
-    show_ptid_issues = st.toggle('Show sessions with patient ID discrepancies', value=False)
-    show_data_quality_issues = st.toggle('Show sessions with data quality issues', value=False)
+    show_ptid_issues = st.toggle('Show sessions with patient ID discrepancies', value=True)
+    show_data_quality_issues = st.toggle('Show sessions with data quality issues', value=True)
     show_data_quality_action = st.toggle('Limit to sessions that require data action/further data review', value=False)
 
 with st.sidebar:
