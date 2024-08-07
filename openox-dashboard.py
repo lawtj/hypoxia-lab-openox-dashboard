@@ -139,15 +139,15 @@ if selected_df == "ISO 2023/FDA 2024":
             # Highlight if >= 1 in each of the 10 MST categories (monk_forehead)
             .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk Forehead'])
 
-            # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10 (monk_forehead)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABCD'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
+            # Highlight if >= 25% in each of the following MST categories: 1-3, 4-7, 8-10 (monk_forehead)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABC'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk DEFG'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
             
-            # Highlight if >= 25% in each of the following MST categories: 1-4(>30°), 5-7(>-30°, <=30°), 8-10(<=-30°) (monk_forehead & ita_dorsal)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA > 30 & Monk ABCD'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-30 < ITA <= 30 & Monk EFG'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA <= -30 & Monk HIJ'])
+            # Highlight if >= 25% in each of the following MST categories: 1-3(>30°), 4-7(>=-30°, <=30°), 8-10(<-30°) (monk_forehead & ita_dorsal)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA > 30 & Monk ABC'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-30 <= ITA <= 30 & Monk DEFG'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA < -30 & Monk HIJ'])
 
             # Highlight if >=1 subject in category MST 1-4 with ITA >= 50° (monk_forehead & ita_dorsal)
             .map(lambda x: 'background-color: #b5e7a0' if x>=1 else "", subset=['ITA >= 50 & Monk ABCD'])
@@ -155,8 +155,8 @@ if selected_df == "ISO 2023/FDA 2024":
             # Highlight if >=2 subjects in category MST 8-10 with ITA <= -45°  (monk_forehead & ita_dorsal)
             .map(lambda x: 'background-color: #b5e7a0' if x>=2 else "", subset=['ITA <= -45 & Monk HIJ'])
             
-            # Highlight if >= 4 subjects in 'ITA <= -50 & Monk HIJ' (monk_forehead & ita_dorsal)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=4 else "", subset=['ITA <= -50 & Monk HIJ'])
+            # Highlight if >= 24*0.25*0.5 subjects in 'ITA < -50 & Monk HIJ' (monk_forehead & ita_dorsal)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=3 else "", subset=['ITA < -50 & Monk HIJ'])
 
             # Highlight if the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively is > 24
             .map(lambda x: 'background-color: #b5e7a0' if x>24 else "", subset=['# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'])
@@ -226,13 +226,13 @@ if selected_df == "ISO 2024/FDA 2024":
             # Highlight if >= 1 in each of the 10 MST categories (monk_forehead)
             .map(lambda x: 'background-color: #b5e7a0' if x==10 else "", subset=['Unique Monk Forehead'])
 
-            # Highlight if >= 25% in each of the following MST categories: 1-4, 5-7, 8-10 (monk_forehead)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABCD'])
-            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk EFG'])
+            # Highlight if >= 25% in each of the following MST categories: 1-3, 4-7, 8-10 (monk_forehead)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk ABC'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk DEFG'])
             .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['Monk HIJ'])
             
-            # Highlight if >= 4 subjects in 'ITA <= -50 & Monk HIJ' (monk_forehead & ita_dorsal)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=4 else "", subset=['ITA <= -50 & Monk HIJ'])
+            # Highlight if >= 4 subjects in 'ITA < -50 & Monk HIJ' (monk_forehead & ita_dorsal)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=4 else "", subset=['ITA < -50 & Monk HIJ'])
 
             # Highlight if the number of sessions with >=25% of so2 data points in the 70%-80%, 80%-90%, and 90% above decade respectively is > 24
             .map(lambda x: 'background-color: #b5e7a0' if x>24 else "", subset=['# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'])

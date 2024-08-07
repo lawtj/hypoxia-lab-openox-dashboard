@@ -193,8 +193,8 @@ for i in ['Female','Male']:
 ########## count monk categories
 # %%
 #define monk skin tone categories
-mstlight = ['A','B','C','D']
-mstmedium = ['E','F','G']
+mstlight = ['A','B','C']
+mstmedium = ['D','E','F','G']
 mstdark = ['H','I','J']
 #count those with monk forehead that is light, medium, or dark
 for i in [mstlight, mstmedium, mstdark]:
@@ -248,15 +248,15 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 ########## count ITA categories
 # ITA criteria: >=50, <=-45, >30, between 30 to -30, <-=-20, <=-50
-itacriteria = [(joined_updated['ita']>=50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>30) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<30) & (joined_updated['ita']>-30) & (joined_updated['monk_forehead'].isin(['E', 'F', 'G'])), (joined_updated['ita']<=-30) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']<=-50) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
-criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>30&MonkABCD','ita30to-30&MonkEFG','ita<=-30&MonkHIJ', 'ita<=-50&MonkHIJ']
+itacriteria = [(joined_updated['ita']>=50) & (joined_updated['monk_forehead'].isin(['A','B','C','D'])), (joined_updated['ita']<=-45) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']>30) & (joined_updated['monk_forehead'].isin(['A','B','C'])), (joined_updated['ita']<=30) & (joined_updated['ita']>=-30) & (joined_updated['monk_forehead'].isin(['D', 'E', 'F', 'G'])), (joined_updated['ita']<-30) & (joined_updated['monk_forehead'].isin(['H','I','J'])), (joined_updated['ita']<-50) & (joined_updated['monk_forehead'].isin(['H','I','J']))]
+criterianames = ['ita>=50&MonkABCD','ita<=-45&MonkHIJ','ita>30&MonkABC','ita30to-30&MonkDEFG','ita<-30&MonkHIJ', 'ita<-50&MonkHIJ']
 
 for i,j in zip(itacriteria,criterianames):
-    # lily is interested in the SID for subject with ITA <= -50 and Monk HIJ
-    if j == 'ita<=-50&MonkHIJ':
+    # lily is interested in the SID for subject with ITA < -50 and Monk HIJ
+    if j == 'ita<-50&MonkHIJ':
         tdf = joined_updated[i].groupby(by='device')['patient_id'].unique().reset_index()
         tdf['patient_id'] = tdf['patient_id'].apply(lambda x: sorted(x))
-        tdf = tdf[['device', 'patient_id']].set_index('device').rename(columns={'patient_id':'ITA <= -50 & Monk HIJ SID'})
+        tdf = tdf[['device', 'patient_id']].set_index('device').rename(columns={'patient_id':'ITA < -50 & Monk HIJ SID'})
         db = db.merge(tdf, left_on='device', right_on='device', how='outer')
     # temp dataframe for each device, counting only the patients who meet the criteria
     tdf = joined_updated[i].groupby(by=['device','patient_id']).count().reset_index().groupby(by='device').count().reset_index()
@@ -424,27 +424,27 @@ db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 # Replace NaN values in some specific columns with empty lists - to avoid raising warnings
 db['Unique Monk Forehead Values'] = db['Unique Monk Forehead Values'].apply(lambda x: [] if isinstance(x, float) and pd.isna(x) else (x if isinstance(x, list) else [x]))
 db['Unique Monk Dorsal Values'] = db['Unique Monk Dorsal Values'].apply(lambda x: [] if isinstance(x, float) and pd.isna(x) else (x if isinstance(x, list) else [x]))
-db['ITA <= -50 & Monk HIJ SID'] = db['ITA <= -50 & Monk HIJ SID'].apply(lambda x: [] if isinstance(x, float) and pd.isna(x) else (x if isinstance(x, list) else [x]))
+db['ITA < -50 & Monk HIJ SID'] = db['ITA < -50 & Monk HIJ SID'].apply(lambda x: [] if isinstance(x, float) and pd.isna(x) else (x if isinstance(x, list) else [x]))
 # fill zeroes
 db.fillna(0, inplace=True)
 
-db_new_v1 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_E', 'monk_forehead_H', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'ita>=50&MonkABCD', 'ita<=-45&MonkHIJ', 'ita>30&MonkABCD', 'ita30to-30&MonkEFG', 'ita<=-30&MonkHIJ', 'ita<=-50&MonkHIJ', 'ITA <= -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
+db_new_v1 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_D', 'monk_forehead_H', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'ita>=50&MonkABCD', 'ita<=-45&MonkHIJ', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v1 = {'device':'Device',
                 'Unique Subjects':'Unique Subjects',
                 'Female': 'Female',
                 'Male': 'Male',
-                'monk_forehead_A':'Monk ABCD',
-                'monk_forehead_E':'Monk EFG',
+                'monk_forehead_A':'Monk ABC',
+                'monk_forehead_D':'Monk DEFG',
                 'monk_forehead_H':'Monk HIJ',
                 'unique_monk_forehead':'Unique Monk Forehead',
                 'unique_monk_dorsal':'Unique Monk Dorsal',
                 'ita>=50&MonkABCD':'ITA >= 50 & Monk ABCD',
                 'ita<=-45&MonkHIJ':'ITA <= -45 & Monk HIJ',
-                'ita>30&MonkABCD':'ITA > 30 & Monk ABCD',
-                'ita30to-30&MonkEFG':'-30 < ITA <= 30 & Monk EFG',
-                'ita<=-30&MonkHIJ':'ITA <= -30 & Monk HIJ',
-                'ita<=-50&MonkHIJ': 'ITA <= -50 & Monk HIJ',
+                'ita>30&MonkABC':'ITA > 30 & Monk ABC',
+                'ita30to-30&MonkDEFG':'-30 <= ITA <= 30 & Monk DEFG',
+                'ita<-30&MonkHIJ':'ITA < -30 & Monk HIJ',
+                'ita<-50&MonkHIJ': 'ITA < -50 & Monk HIJ',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
                 'sample_range':'Unique Subjects with 16-30 Samples',
@@ -458,21 +458,21 @@ column_dict_db_new_v1 = {'device':'Device',
                 'session_count':'# of Sessions with >=25%\n of SaO2 in 70-80, 80-90, 90-100'
                 }
 
-db_new_v2 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_E', 'monk_forehead_H', 'monk_forehead_AB', 'monk_forehead_CD', 'monk_forehead_EF', 'monk_forehead_GH', 'monk_forehead_IJ', 'ita<=-50&MonkHIJ', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
+db_new_v2 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_D', 'monk_forehead_H', 'monk_forehead_AB', 'monk_forehead_CD', 'monk_forehead_EF', 'monk_forehead_GH', 'monk_forehead_IJ', 'ita<-50&MonkHIJ', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v2 = {'device':'Device',
                 'Unique Subjects':'Unique Subjects',
                 'Female': 'Female',
                 'Male': 'Male',
-                'monk_forehead_A':'Monk ABCD',
-                'monk_forehead_E':'Monk EFG',
+                'monk_forehead_A':'Monk ABC',
+                'monk_forehead_D':'Monk DEFG',
                 'monk_forehead_H':'Monk HIJ',
                 'monk_forehead_AB':'Monk AB',
                 'monk_forehead_CD':'Monk CD',
                 'monk_forehead_EF':'Monk EF',
                 'monk_forehead_GH':'Monk GH',
                 'monk_forehead_IJ':'Monk IJ',
-                'ita<=-50&MonkHIJ': 'ITA <= -50 & Monk HIJ',
+                'ita<-50&MonkHIJ': 'ITA < -50 & Monk HIJ',
                 'unique_monk_forehead':'Unique Monk Forehead',
                 'unique_monk_dorsal':'Unique Monk Dorsal',
                 'priority':'Test Priority',
