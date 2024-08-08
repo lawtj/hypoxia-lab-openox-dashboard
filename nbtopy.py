@@ -70,11 +70,11 @@ konica['ita'] = konica.apply(hlab.ita, axis=1)
 # take the median of each unique session
 # konica_unique_median = konica[konica['ita'] == konica.groupby(['session', 'group'])['ita'].transform('median')]
 konica_unique_median = konica.groupby(['session','group']).median(numeric_only=True).reset_index()
-# keep only dorsal site
-konica_unique_median_site = konica_unique_median[konica_unique_median['group'].str.contains(r'\WB\W')]
+# keep only Forehead site
+konica_unique_median_site = konica_unique_median[konica_unique_median['group'].isin(['Forehead (G)', 'Forehead (E)'])]
 # merge the konica data with the joined data
 # joined = joined.merge(konica_unique_median_site, left_on=['session','patient_id','session_date'], right_on=['session','upi','date'], how='left')
-joined = joined.merge(konica_unique_median_site, left_on=['session','patient_id'], right_on=['session','upi'], how='left')
+joined = joined.merge(konica_unique_median_site[['session', 'group', 'ita']], on=['session'], how='left')
 print_memory_usage("After merging data")
 
 # add participant metadata
