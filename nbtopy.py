@@ -152,11 +152,14 @@ joined=joined[['patient_id','session_date','session','device','assigned_sex','do
 joined_updated = pd.merge(joined, labview_samples, on = ['session', 'sample'], how='inner')
 print_memory_usage("After merging labview_samples and joined")
 
-# remove encounters with fewer than 16 data points
-sample_count_by_session = joined_updated.groupby('session')['sample'].nunique()
-# select sessions with >=16 samples
-sessions_to_keep = sample_count_by_session[sample_count_by_session >= 16].index
-joined_updated = joined_updated[joined_updated['session'].isin(sessions_to_keep)]
+# remove encounters with fewer than 16 data points (per device)
+# sample_count_by_session = joined_updated.groupby(['session']).count()['sample']
+# # select sessions with >=16 samples
+# sessions_to_keep = sample_count_by_session[sample_count_by_session >= 16].index
+# joined_updated = joined_updated[joined_updated['session'].isin(sessions_to_keep)]
+sample_count_by_device_session = joined_updated.groupby(['device', 'session']).count()['sample']
+device_session_to_keep = sample_count_by_device_session[sample_count_by_device_session >= 16].index
+joined_updated = joined_updated[joined_updated.set_index(['device', 'session']).index.isin(device_session_to_keep)].reset_index()
 
 # %%
 haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = hlab.pt_counts(joined_updated)
@@ -265,6 +268,7 @@ for i,j in zip(itacriteria,criterianames):
     # merge with dashboard frame
     db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
+print(joined_updated[joined_updated['monk_forehead'].isin(['A', 'B', 'C']) & (joined_updated['ita'] > 30) & (joined_updated['device'] == 2)]['patient_id'].unique())
 ########## add age at session
 
 # db = db.merge(stats('age_at_session',joined_updated), left_on='device', right_index=True, how='outer')
