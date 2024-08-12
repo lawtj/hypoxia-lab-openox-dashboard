@@ -254,7 +254,7 @@ with st.sidebar:
     if limit_to_manual_sessions:
         #calculate stats on sessions that were manually reviewed
         manual_stats_df = labview_samples[labview_samples['manual_so2'].notnull()]
-        st.write(manual_stats_automated_qc_df['manual_algo_compare'].value_counts(normalize=True).mul(100).round(2).astype(str) + '%')
+        st.write(manual_stats_df['manual_algo_compare'].value_counts(normalize=True).mul(100).round(2).astype(str) + '%')
     
 
     qcstats_summary = {
@@ -355,6 +355,8 @@ if filter_by_bias:
 if filter_by_nellcor_arms:
     if arms_comparison == '>=':
         high_arms_sessions = [key for key, value in armsdict.items() if 'Nellcor/SpO2' in value and value['Nellcor/SpO2'] >= max_arms]
+        #add check for Nellcor PM1000N-1/SpO2 column
+        high_arms_sessions += [key for key, value in armsdict.items() if 'Nellcor PM1000N-1/SpO2' in value and value['Nellcor PM1000N-1/SpO2'] >= max_arms]
     else:
         high_arms_sessions = [key for key, value in armsdict.items() if 'Nellcor/SpO2' in value and value['Nellcor/SpO2'] <= max_arms]
     qc_status = qc_status[qc_status['session_id'].isin(high_arms_sessions)]
