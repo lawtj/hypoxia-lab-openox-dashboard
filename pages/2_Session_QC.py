@@ -333,8 +333,7 @@ else:  # AND logic
     elif show_qc_status == 'Incomplete':
         mask &= qc_status['qc_complete'] == 0
 
-qc_status = qc_status[mask]
-
+qc_status = qc_status.reset_index()[mask]
 
 # Updated Filter Logic
 if filter_by_bias:
