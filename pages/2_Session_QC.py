@@ -22,7 +22,7 @@ def getdf():
     df = pd.read_pickle(f)
     return df
 
-df = getdf()
+automated_qc_df = getdf()
 
 #QC status is the manual QC review
 def get_qc_status():
@@ -34,6 +34,7 @@ def get_qc_status():
     return df
 
 qc_status = get_qc_status()
+qc_status=qc_status.reset_index()
 
 def label_manual_samples(labview_samples, drop_dict):
     # label samples to be dropped
@@ -79,7 +80,7 @@ def safe_literal_eval(val):
     except (ValueError, SyntaxError):
         return val
 
-armsdict = {row['session_id']: safe_literal_eval(row['arms']) for index, row in df.iterrows() if pd.notnull(row['arms'])}
+armsdict = {row['session_id']: safe_literal_eval(row['arms']) for index, row in automated_qc_df.iterrows() if pd.notnull(row['arms'])}
 
 def create_subset_frame(labview_samples, selected_session, show_cleaned=False):
     frame = labview_samples[labview_samples['session'] == selected_session]
@@ -157,9 +158,15 @@ def create_plot(frame, plotcolumns, limit_to_manual_sessions=False):
 
 
 def on_click_next():
-    st.session_state['selected_session'] = next_session
+    if next_session is not None:
+        st.session_state['selected_session'] = next_session
+    else:
+        st.session_state['selected_session'] = previous_session
 def on_click_previous():
-    st.session_state['selected_session'] = previous_session
+    if previous_session is not None:
+        st.session_state['selected_session'] = previous_session
+    else:
+        st.session_state['selected_session'] = next_session
 
 def update_qc_field(df, session_id, ):
     # first, check if qc_complete is True, but if any of the other fields are False, then qc_complete should be False
@@ -169,31 +176,30 @@ def update_qc_field(df, session_id, ):
     api_url = 'https://redcap.ucsf.edu/api/'
     api_k = st.secrets['REDCAP_QC']
     proj = Project(api_url, api_k)
-    update_df = df[df['session_id'] == session_id]
-    update_df['session_notes_addressed'] = st.session_state.qc_notes
-    update_df['missing_files_resolved'] = st.session_state.qc_missing
-    update_df['date_discrepancies_resolved'] = st.session_state.qc_date_discrepancy
-    update_df['id_discrepancies_resolved'] = st.session_state.qc_id_discrepancy
-    update_df['data_quality_checked'] = st.session_state.qc_quality
-    update_df['qc_complete'] = st.session_state.qc_complete
-    update_df['data_quality_notes'] = st.session_state.qc_quality_notes
-    update_df['data_quality_action'] = st.session_state.qc_data_qualtiy_action
-    proj.import_records(update_df, import_format='df')
+    update_automated_qc_df = qc_status[qc_status['session_id'] == session_id]
+    update_automated_qc_df['session_notes_addressed'] = st.session_state.qc_notes
+    update_automated_qc_df['missing_files_resolved'] = st.session_state.qc_missing
+    update_automated_qc_df['date_discrepancies_resolved'] = st.session_state.qc_date_discrepancy
+    update_automated_qc_df['id_discrepancies_resolved'] = st.session_state.qc_id_discrepancy
+    update_automated_qc_df['data_quality_checked'] = st.session_state.qc_quality
+    update_automated_qc_df['qc_complete'] = st.session_state.qc_complete
+    update_automated_qc_df['data_quality_notes'] = st.session_state.qc_quality_notes
+    update_automated_qc_df['data_quality_action'] = st.session_state.qc_data_qualtiy_action
+    proj.import_records(update_automated_qc_df, import_format='df')
     qc_message.success(f'Session {selected_session}: QC status updated', icon='✅')
     qc_message.caption(pd.Timestamp.now())
     on_click_next()
-
 
 ####################### title #######################
 
 st.title('Session Quality Control')
 
-df['missing_dates_tf'] = df['dates'].apply(lambda x: x['missing'])
-df['missing_ptids'] = df['patient_ids'].apply(lambda x: x['missing_data'])
-df['missing_ptids_tf'] = df['missing_ptids'].apply(lambda x: len(x)>0)
-df['missing_abg_tf'] = df['missing_ptids'].apply(lambda x: 'Blood Gas' in x)
-df['missing_konica_tf'] = df['missing_ptids'].apply(lambda x: 'Konica' in x)
-df['missing_labview_tf'] = df['missing_ptids'].apply(lambda x: 'Labview' in x)
+automated_qc_df['missing_dates_tf'] = automated_qc_df['dates'].apply(lambda x: x['missing'])
+automated_qc_df['missing_ptids'] = automated_qc_df['patient_ids'].apply(lambda x: x['missing_data'])
+automated_qc_df['missing_ptids_tf'] = automated_qc_df['missing_ptids'].apply(lambda x: len(x)>0)
+automated_qc_df['missing_abg_tf'] = automated_qc_df['missing_ptids'].apply(lambda x: 'Blood Gas' in x)
+automated_qc_df['missing_konica_tf'] = automated_qc_df['missing_ptids'].apply(lambda x: 'Konica' in x)
+automated_qc_df['missing_labview_tf'] = automated_qc_df['missing_ptids'].apply(lambda x: 'Labview' in x)
 
 ####################### filters #######################
 
@@ -248,7 +254,7 @@ with st.sidebar:
     if limit_to_manual_sessions:
         #calculate stats on sessions that were manually reviewed
         manual_stats_df = labview_samples[labview_samples['manual_so2'].notnull()]
-        st.write(manual_stats_df['manual_algo_compare'].value_counts(normalize=True).mul(100).round(2).astype(str) + '%')
+        st.write(manual_stats_automated_qc_df['manual_algo_compare'].value_counts(normalize=True).mul(100).round(2).astype(str) + '%')
     
 
     qcstats_summary = {
@@ -333,7 +339,7 @@ else:  # AND logic
     elif show_qc_status == 'Incomplete':
         mask &= qc_status['qc_complete'] == 0
 
-qc_status = qc_status.reset_index()[mask]
+qc_status = qc_status[mask]
 
 # Updated Filter Logic
 if filter_by_bias:
@@ -358,11 +364,14 @@ if limit_to_manual_sessions:
     set2 = set(labview_samples[labview_samples['manual_so2'] == 'reject']['session'].unique().tolist())
     manualsessionlist = list(set1.intersection(set2))
     qc_status = qc_status[qc_status['session_id'].isin(manualsessionlist)]
-dfm = df[df['session_id'].isin(qc_status['session_id'])][['session_id','session_notes','missing_abg_tf','missing_konica_tf','missing_labview_tf']]
+
+# dfm is the subset of the automated qc df that is in qc_status
+dfm = automated_qc_df[automated_qc_df['session_id'].isin(qc_status['session_id'])][['session_id','session_notes','missing_abg_tf','missing_konica_tf','missing_labview_tf']]
 #invert the true false values for missing files
 dfm['missing_abg_tf'] = ~dfm['missing_abg_tf']
 dfm['missing_konica_tf'] = ~dfm['missing_konica_tf']
 dfm['missing_labview_tf'] = ~dfm['missing_labview_tf']
+
 qc_display = qc_status.merge(dfm, on='session_id', how='left')
 
 st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed','missing_abg_tf','missing_konica_tf','missing_labview_tf','date_discrepancies_resolved','id_discrepancies_resolved','data_quality_checked','data_quality_action','data_quality_notes','qc_complete']].sort_index(ascending=False), use_container_width=True, column_config={
@@ -379,7 +388,7 @@ st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed',
     "qc_complete": st.column_config.CheckboxColumn("QC Complete", width='small')}, hide_index=True)
 
 
-# st.dataframe(df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_abg_tf','missing_konica_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
+# st.dataframe(automated_qc_df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_abg_tf','missing_konica_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
 #     "session_notes": st.column_config.TextColumn("Session Notes", width='medium'),
 #     "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
 #     "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small'),
@@ -418,8 +427,8 @@ with left:
 ##### 
 
 if pd.notnull(selected_session):
-    datesdict = df.loc[df['session_id'] == selected_session,'dates'].values[0]
-    ptids = df.loc[df['session_id'] == selected_session, 'patient_ids'].values[0]
+    datesdict = automated_qc_df.loc[automated_qc_df['session_id'] == selected_session,'dates'].values[0]
+    ptids = automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'patient_ids'].values[0]
 
 
     ###################### Initialize Session State #######################
@@ -447,19 +456,19 @@ if pd.notnull(selected_session):
             st.markdown('### Session Notes')
             st.checkbox('Session notes addressed', key='qc_notes')
 
-            if pd.isna(df.loc[df['session_id']==selected_session,'session_notes'].values[0]):
+            if pd.isna(automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'session_notes'].values[0]):
                 st.success('No notes found', icon="✅")
             else:
-                st.info(df.loc[df['session_id']==selected_session,'session_notes'].values[0])
+                st.info(automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'session_notes'].values[0])
             
 
         with right:
             st.markdown('### Missing Files')
             st.checkbox('Missing files addressed', key='qc_missing')
 
-            missing_abg = df.loc[df['session_id']==selected_session,'missing_abg_tf'].values[0]
-            missing_konica = df.loc[df['session_id']==selected_session,'missing_konica_tf'].values[0]
-            missing_labview = df.loc[df['session_id']==selected_session,'missing_labview_tf'].values[0]
+            missing_abg = automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'missing_abg_tf'].values[0]
+            missing_konica = automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'missing_konica_tf'].values[0]
+            missing_labview = automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'missing_labview_tf'].values[0]
 
             if missing_abg:
                 st.error('Missing ABG file')
@@ -477,7 +486,7 @@ if pd.notnull(selected_session):
             st.checkbox('Date Discrepancies addressed', key='qc_date_discrepancy')
 
             # make a warning flag if there is date_issues_tf = True
-            if df.loc[df['session_id']==selected_session, 'date_issues_tf'].values[0]:
+            if automated_qc_df.loc[automated_qc_df['session_id']==selected_session, 'date_issues_tf'].values[0]:
                 st.error('Date discrepancies found', icon="🚨")
             else:
                 st.success('No date discrepancies found', icon="✅")
@@ -496,7 +505,7 @@ if pd.notnull(selected_session):
             st.checkbox('Patient ID Discrepancies addressed', key='qc_id_discrepancy')
 
             # make a warning flag if there is patient_id_issues_tf = True
-            if df.loc[df['session_id']==selected_session,'patient_id_issues_tf'].values[0]:
+            if automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'patient_id_issues_tf'].values[0]:
                 st.error('Patient ID discrepancies found', icon="🚨")
             else:
                 st.success('No patient ID discrepancies found', icon="✅")
@@ -526,8 +535,8 @@ if pd.notnull(selected_session):
             frame = create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0]
             st.write('**Max bias:**', round(frame['bias'].abs().max(),2))
             st.write('**ARMS calculations:**')
-            if not pd.isna(df.loc[df['session_id'] == selected_session, 'arms'].values[0]):    
-                for value in df.loc[df['session_id'] == selected_session, 'arms'].values[0].items():
+            if not pd.isna(automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0]):    
+                for value in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items():
                     st.write(value[0], round(value[1],2))
             st.text_area('Data quality notes', key='qc_quality_notes')
 
