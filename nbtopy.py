@@ -144,7 +144,6 @@ joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 # abg_updated.loc[:, 'date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
 # print(abg_updated.columns)
 
-
 print_memory_usage("Before merging labview_samples and joined")
 joined = joined.rename(columns ={'date_x':'session_date', 'fitzpatrick_x':'fitzpatrick'})
 joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample']]
@@ -153,13 +152,14 @@ joined_updated = pd.merge(joined, labview_samples, on = ['session', 'sample'], h
 print_memory_usage("After merging labview_samples and joined")
 
 # remove encounters with fewer than 16 data points (per device)
-# sample_count_by_session = joined_updated.groupby(['session']).count()['sample']
-# # select sessions with >=16 samples
-# sessions_to_keep = sample_count_by_session[sample_count_by_session >= 16].index
-# joined_updated = joined_updated[joined_updated['session'].isin(sessions_to_keep)]
 sample_count_by_device_session = joined_updated.groupby(['device', 'session']).count()['sample']
 device_session_to_keep = sample_count_by_device_session[sample_count_by_device_session >= 16].index
 joined_updated = joined_updated[joined_updated.set_index(['device', 'session']).index.isin(device_session_to_keep)].reset_index()
+
+# exclude sessions in before October 2023
+# joined_updated = joined_updated[joined_updated['session_date'] >= '2023-10-01']
+# exclude sessions with session_date in June 2023 and September 2023
+# joined_updated = joined_updated[~(joined_updated['session_date'].astype(str).str.contains('2023-06')) & ~(joined_updated['session_date'].astype(str).str.contains('2023-09'))]
 
 # %%
 haskonica, hasmonk, hasboth, hasmonk_notkonica, haskonica_notmonk = hlab.pt_counts(joined_updated)
@@ -267,8 +267,6 @@ for i,j in zip(itacriteria,criterianames):
     tdf = tdf[['device','patient_id']].set_index('device').rename(columns={'patient_id':j})
     # merge with dashboard frame
     db = db.merge(tdf, left_on='device', right_on='device', how='outer')
-
-print(joined_updated[joined_updated['monk_forehead'].isin(['A', 'B', 'C']) & (joined_updated['ita'] > 30) & (joined_updated['device'] == 2)]['patient_id'].unique())
 ########## add age at session
 
 # db = db.merge(stats('age_at_session',joined_updated), left_on='device', right_index=True, how='outer')
@@ -508,5 +506,28 @@ column_dict_db_old = {'device':'Device',
                 'so2_80-90':'%\n of SaO2 in 80-90 (pooled)',
                 'so2_90-100':'%\n of SaO2 in 90-100 (pooled)',
                 }
+
+
+db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100']]
+#create a dictionary of column names and their descriptions
+column_dict_db_new_v3 = {'device':'Device',
+                        'priority':'Test Priority',
+                        'Unique Subjects':'Unique Subjects',
+                        'Female': 'Female',
+                        'Male': 'Male',
+                        'ita>30&MonkABC':'ITA > 30 & Monk ABC',
+                        'ita30to-30&MonkDEFG':'-30 <= ITA <= 30 & Monk DEFG',
+                        'ita<-30&MonkHIJ':'ITA < -30 & Monk HIJ',
+                        'ita<-50&MonkHIJ': 'ITA < -50 & Monk HIJ',
+                        'avg_sample':'Avg Samples per Session',
+                        'sample_range':'Unique Subjects with 16-30 Samples',
+                        'so2<85':'%\n of Sessions Provides SaO2 < 85',
+                        "min_sao2":'Min SaO2',
+                        "max_sao2":'Max SaO2',
+                        'sao2_70-80':'%\n of Sessions Provides SaO2 in 70-80',
+                        'so2_70-80':'%\n of SaO2 in 70-80 (pooled)',
+                        'so2_80-90':'%\n of SaO2 in 80-90 (pooled)',
+                        'so2_90-100':'%\n of SaO2 in 90-100 (pooled)'
+                        }
 
 print_memory_usage("After dashboard")

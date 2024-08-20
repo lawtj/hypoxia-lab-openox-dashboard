@@ -8,10 +8,10 @@ st.title('OpenOx Dashboard')
 
 @st.cache_data(show_spinner=True)
 def get_redcap_data():
-    from nbtopy import memhist, db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
-    return memhist, db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined
+    from nbtopy import memhist, db_new_v1,db_new_v2, db_new_v3, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_new_v3, column_dict_db_old, konica, session, joined
+    return memhist, db_new_v1,db_new_v2, db_new_v3, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_new_v3, column_dict_db_old, konica, session, joined
 
-memhist, db_new_v1,db_new_v2, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_old, konica, session, joined = get_redcap_data()
+memhist, db_new_v1,db_new_v2, db_new_v3, db_old, haskonica, hasmonk, hasboth, haskonica_notmonk, hasmonk_notkonica, column_dict_db_new_v1, column_dict_db_new_v2, column_dict_db_new_v3, column_dict_db_old, konica, session, joined = get_redcap_data()
 
 # if not ('db_new_v1' in st.session_state or 'db_new_v2' in st.session_state or 'db_old' in st.session_state):
 #     print('db is not in session state')
@@ -68,7 +68,7 @@ def highlight_value_greater(s, cols_to_sum, threshold):
 
 st.subheader('Choose a version of the standard to look at:')
 
-selected_df = st.radio('', ("ISO 2017/ FDA 2013", "ISO 2023/FDA 2024", "ISO 2024/FDA 2024"), index=1)
+selected_df = st.radio('', ("ISO 2017/ FDA 2013", "ISO 2023/FDA 2024", "ISO 2024/FDA 2024", "ISO 2024 (Latest Draft)"), index=3)
 
 if selected_df == "ISO 2017/ FDA 2013":
     db_old = db_old.copy()
@@ -239,8 +239,55 @@ if selected_df == "ISO 2024/FDA 2024":
             # .format(lambda x: f'{x:,.2f}', subset=list(column_dict.values())),
             .format(lambda x: f'{x:,.0f}', subset=list(column_dict_db_new_v2.values())),
 
-            height = (23 + 1) * 35 + 3)             
+            height = (23 + 1) * 35 + 3)           
+    
+if selected_df == "ISO 2024 (Latest Draft)":
+    # style database
+    db_new_v3 = db_new_v3.copy()
+    db_new_v3.rename(columns=column_dict_db_new_v3, inplace=True)
+    st.dataframe(db_new_v3
+            .style
+            # Highlight if Sample size >= 24 (unique patient_id)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects'])
 
+            # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['Avg Samples per Session'])
+
+            # Highlight if Range of number of data points per participant is in 16-30 (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with 16-30 Samples'])
+
+            # Highlight if Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 70-80 (pooled)'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 80-90 (pooled)'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 90-100 (pooled)'])
+            
+             # Highlight if for 70-100% include 73% and 97% (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x<=73 else "", subset=['Min SaO2'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=97 else "", subset=['Max SaO2'])
+
+            # Highlight if >= 90% of the sessions in the same device provide so2 data < 85 (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=90 else "", subset=['%\n of Sessions Provides SaO2 < 85'])
+
+            # Highlight if >=70% participants/sessions provide data points in the 70%-80% decade (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=70 else "", subset=['%\n of Sessions Provides SaO2 in 70-80'])
+
+            # Highlight if Each sex has approximately 40% percentage (assigned_sex)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=9.6 else "", subset=['Female'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=9.6 else "", subset=['Male'])
+            
+            # Highlight if >= 25% in each of the following MST categories: 1-3(>30°), 4-7(>=-30°, <=30°), 8-10(<-30°) (monk_forehead & ita_dorsal)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA > 30 & Monk ABC'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['-30 <= ITA <= 30 & Monk DEFG'])
+            .map(lambda x: 'background-color: #b5e7a0' if x>=6 else "", subset=['ITA < -30 & Monk HIJ'])
+            
+            # Highlight if >= 24*0.25*0.5 subjects in 'ITA < -50 & Monk HIJ' (monk_forehead & ita_dorsal)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=3 else "", subset=['ITA < -50 & Monk HIJ'])
+            
+            # .format(lambda x: f'{x:,.2f}', subset=list(column_dict.values())),
+            .format(lambda x: f'{x:,.0f}', subset=list(column_dict_db_new_v3.values())),
+
+            height = (23 + 1) * 35 + 3)
+    
 ########### Visualize the skin color distribution of the lab by both ITA and Monk #####################
 mscolors = {'A': '#f7ede4', 
             'B': '#f3e7db', 
