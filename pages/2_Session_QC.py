@@ -87,17 +87,19 @@ def create_subset_frame(labview_samples, selected_session, show_cleaned=False):
     frame = frame.drop(columns=['session'])
     
     if frame['Nellcor PM1000N-1/SpO2'].sum() > 0:
-        frame = frame.drop(columns=['Masimo 97/SpO2', 'Nellcor/SpO2', 'Nellcor/SpO2_diff_prev', 'Nellcor/SpO2_diff_next', 'Masimo 97/SpO2_diff_prev', 'Masimo 97/SpO2_diff_next'])
+        frame = frame.drop(columns=['Masimo 97/SpO2', 'Nellcor/SpO2', 'Masimo 97/PI', 'Nellcor/PI', 'Nellcor/SpO2_diff_prev', 'Nellcor/SpO2_diff_next', 'Masimo 97/SpO2_diff_prev', 'Masimo 97/SpO2_diff_next'])
         frame = frame.rename(columns={
             'Nellcor PM1000N-1/SpO2': 'Nellcor/SpO2',
+            'Nellcor PM1000N-1/PI': 'Nellcor/PI',
             'Nellcor PM1000N-1/SpO2_diff_prev': 'Nellcor/SpO2_diff_prev',
             'Nellcor PM1000N-1/SpO2_diff_next': 'Nellcor/SpO2_diff_next',
             'Rad97-60/SpO2': 'Masimo 97/SpO2',
+            'Rad97-60/PI': 'Masimo 97/PI',
             'Rad97-60/SpO2_diff_prev': 'Masimo 97/SpO2_diff_prev',
             'Rad97-60/SpO2_diff_next': 'Masimo 97/SpO2_diff_next'
         })
     else:
-        frame = frame.drop(columns=['Masimo HB/SpO2', 'Masimo HB/SpO2_diff_prev', 'Masimo HB/SpO2_diff_next', 'Nellcor PM1000N-1/SpO2', 'Nellcor PM1000N-1/SpO2_diff_prev', 'Nellcor PM1000N-1/SpO2_diff_next', 'Rad97-60/SpO2', 'Rad97-60/SpO2_diff_prev', 'Rad97-60/SpO2_diff_next'])
+        frame = frame.drop(columns=['Nellcor PM1000N-1/SpO2', 'Nellcor PM1000N-1/PI','Nellcor PM1000N-1/SpO2_diff_prev', 'Nellcor PM1000N-1/SpO2_diff_next', 'Rad97-60/SpO2', 'Rad97-60/PI', 'Rad97-60/SpO2_diff_prev', 'Rad97-60/SpO2_diff_next'])
     
     if not show_cleaned:
         # Add logic to set so2 and Nellcor/SpO2 to np.nan based on their stability
@@ -545,8 +547,11 @@ if pd.notnull(selected_session):
 
         plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
         st.plotly_chart(create_plot(frame, plotcolumns, limit_to_manual_sessions), use_container_width=True)
+        frame['Nellcor/PI'] = frame['Nellcor/PI'].apply(lambda x: x/10 if pd.notnull(x) else x)
         st.dataframe(frame.set_index('sample')
-                    .drop(columns=['sample_diff_prev',
+                    .drop(columns=[ 'RR','Masimo HB/SpO2', 'Masimo HB/PI', 'Masimo HB/SpO2_diff_prev', 'Masimo HB/SpO2_diff_next',### Danni doesn't think there is Masimo HB/SpO2?
+                                    'Masimo 97/HR', 'Nellcor/HR', 'Masimo HB/HR', 'Rad97-60/HR', 'Nellcor PM1000N-1/HR', 'RR', ### They were added by Danni for labview_samples but don't need to be shown on QC dashboard
+                                    'sample_diff_prev',
                                     'sample_diff_next',
                                     # 'Nellcor/SpO2_diff_prev',
                                     # 'Nellcor/SpO2_diff_next',
@@ -559,7 +564,9 @@ if pd.notnull(selected_session):
                                     'Nellcor/SpO2_line',
                                     'Masimo 97/SpO2_line',
                                     'Masimo 97/SpO2_symbol',
-                                    'bias_line']), use_container_width=True)
+                                    'bias_line'])
+                    [['Masimo 97/SpO2', 'Masimo 97/PI', 'Nellcor/SpO2', 'Nellcor/PI', 'so2', 'bias', 'Nellcor/SpO2_diff_prev', 'Nellcor/SpO2_diff_next', 'so2_diff_prev', 'so2_diff_next', 'Timestamp', 'Timestamp_diff_prev', 'Timestamp_diff_next', 'so2_stable', 'so2_reason', 'Nellcor_stable', 'Nellcor_reason', 'Masimo_stable', 'Masimo_reason', 'algo_status', 'algo', 'manual_so2', 'manual_algo_compare']],
+                    use_container_width=True)
         
         st.markdown('### Final QC')
         st.checkbox('QC complete', key='qc_complete')
