@@ -70,7 +70,6 @@ def get_labview_samples():
 
 labview_samples = get_labview_samples()
 
-
 # Function to safely evaluate the string into a dictionary
 def safe_literal_eval(val):
     if val == '{}':
@@ -543,7 +542,30 @@ if pd.notnull(selected_session):
                 for value in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items():
                     st.write(value[0], round(value[1],2))
             st.text_area('Data quality notes', key='qc_quality_notes')
-
+            
+            ############# Danni Updates ###############
+            st.write('**ARMS comparison:**')
+            if labview_samples[labview_samples['session'] == selected_session]['Nellcor PM1000N-1/SpO2'].sum() > 0:
+                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Rad97-60/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+                st.write('Masimo ARMS (all data):', round(all_data_arms,2))
+                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Rad97-60/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+                st.write('Masimo ARMS (cleaned data):', round(cleaned_data_arms,2))
+            
+                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Nellcor PM1000N-1/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+                st.write('Nellcor ARMS (all data):', round(all_data_arms,2))
+                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Nellcor PM1000N-1/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+                st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
+            else:
+                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Masimo 97/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+                st.write('Masimo ARMS (all data):', round(all_data_arms,2))
+                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Masimo 97/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+                st.write('Masimo ARMS (cleaned data):', round(cleaned_data_arms,2))
+            
+                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Nellcor/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+                st.write('Nellcor ARMS (all data):', round(all_data_arms,2))
+                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Nellcor/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+                st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
+            ##########################################
 
         plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
         st.plotly_chart(create_plot(frame, plotcolumns, limit_to_manual_sessions), use_container_width=True)
