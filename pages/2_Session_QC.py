@@ -499,25 +499,21 @@ if pd.notnull(selected_session):
                 # Create a DataFrame for the dates
             # Create a DataFrame for the dates
             dates_data = {
-                'Label': ['Session date', 'Labview date', 'Konica date', 'ABG file date', 'Manual pulse ox entry date', 
-                        f'Sample {abg_timestamp_num} (Labview)', f'Sample {abg_timestamp_num} (ABG)'],
+                'Label': ['Session date', f'Labview date (Sample {abg_timestamp_num})', f'ABG file date (Sample {abg_timestamp_num})',' Konica date',  'Manual pulse ox entry date', 
+                        ],
                 'Date': [
                     str(datesdict['dates']['session']),
                     str(datesdict['dates']['labview']),
-                    str(datesdict['dates']['konica']),
                     str(datesdict['dates']['bloodgas']),
+                    str(datesdict['dates']['konica']),
                     str(datesdict['dates']['pulseox']) if datesdict['dates']['pulseox'] != [] else 'No manual pulse ox entry data',
-                    labview_timestamp.date() if abg_timestamp is not None and labview_timestamp is not None  else 'No sample',
-                    pd.to_datetime(re.search(r'Sample \d*:(.*)', abg_timestamp).group(1)).date() if abg_timestamp is not None and labview_timestamp is not None else 'No sample'
                 ],
                 'Time': [
                     "",
-                    "",
-                    "",
-                    "",
-                    "",
                     labview_timestamp.time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample',
-                    pd.to_datetime(re.search(r'Sample \d*:(.*)', abg_timestamp).group(1)).time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample'
+                    labview_timestamp.time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample',
+                    pd.to_datetime(automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'konica_timestamp'].values[0]).time() if pd.notnull(automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'konica_timestamp'].values[0]) else "",
+                    "",
                 ]
             }
 
