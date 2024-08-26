@@ -9,6 +9,8 @@ import io
 import os
 import openox as ox
 from session_functions import colormap
+from datetime import datetime
+
 
 st.set_page_config(page_title='Session Quality Control', layout='wide')
 
@@ -390,15 +392,6 @@ st.dataframe(qc_display[['session_id','session_notes','session_notes_addressed',
     "data_quality_action": st.column_config.CheckboxColumn("Requires Data Action", width='small'),
     "qc_complete": st.column_config.CheckboxColumn("QC Complete", width='small')}, hide_index=True)
 
-
-# st.dataframe(automated_qc_df[['session_id','session_notes','date_issues_tf','patient_id_issues_tf','missing_abg_tf','missing_konica_tf','missing_ptids']].sort_index(ascending=False), use_container_width=True, column_config={
-#     "session_notes": st.column_config.TextColumn("Session Notes", width='medium'),
-#     "date_issues_tf": st.column_config.CheckboxColumn("Date Issues", width='small'),
-#     "patient_id_issues_tf": st.column_config.CheckboxColumn("Patient ID Issues", width='small'),
-#     'missing_ptids': st.column_config.ListColumn('Missing Patient IDs', width='medium'),
-#     'missing_abg_tf': st.column_config.CheckboxColumn("Missing ABG"),
-#     'missing_konica_tf':st.column_config.CheckboxColumn('Missing Konica')},hide_index=True)
-
 st.write('Number of sessions:', len(qc_status))
 
 
@@ -432,8 +425,18 @@ with left:
 if pd.notnull(selected_session):
     datesdict = automated_qc_df.loc[automated_qc_df['session_id'] == selected_session,'dates'].values[0]
     ptids = automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'patient_ids'].values[0]
+    try:
+        frame = create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0]
+    except:
+        frame = None
 
-
+    abg_timestamp = automated_qc_df.query('session_id == @selected_session')['abg2_timestamp'].values[0]
+    
+    abg_timestamp_num = pd.to_numeric(abg_timestamp.split("Sample ")[1].split(":")[0]) if abg_timestamp is not None else None
+    try:
+        labview_timestamp = pd.to_datetime(frame.loc[frame['sample'] == abg_timestamp_num, 'Timestamp'].values[0])
+    except:
+        labview_timestamp = None
     ###################### Initialize Session State #######################
     st.session_state.qc_notes = qc_status.loc[qc_status['session_id'] == selected_session, 'session_notes_addressed'].values[0]
     st.session_state.qc_missing = qc_status.loc[qc_status['session_id'] == selected_session, 'missing_files_resolved'].values[0]
@@ -482,7 +485,7 @@ if pd.notnull(selected_session):
             if not missing_abg and not missing_konica and not missing_labview:
                 st.success('No missing files found', icon="✅")
 
-            
+        import re
         left, right = st.columns(2)
         with left:
             st.markdown('### Date Discrepancies')
@@ -493,16 +496,52 @@ if pd.notnull(selected_session):
                 st.error('Date discrepancies found', icon="🚨")
             else:
                 st.success('No date discrepancies found', icon="✅")
-            st.markdown(f'''
+                # Create a DataFrame for the dates
+            # Create a DataFrame for the dates
+            dates_data = {
+                'Label': ['Session date', 'Labview date', 'Konica date', 'ABG file date', 'Manual pulse ox entry date', 
+                        f'Sample {abg_timestamp_num} (Labview)', f'Sample {abg_timestamp_num} (ABG)'],
+                'Date': [
+                    str(datesdict['dates']['session']),
+                    str(datesdict['dates']['labview']),
+                    str(datesdict['dates']['konica']),
+                    str(datesdict['dates']['bloodgas']),
+                    str(datesdict['dates']['pulseox']) if datesdict['dates']['pulseox'] != [] else 'No manual pulse ox entry data',
+                    labview_timestamp.date() if abg_timestamp is not None and labview_timestamp is not None  else 'No sample',
+                    pd.to_datetime(re.search(r'Sample \d*:(.*)', abg_timestamp).group(1)).date() if abg_timestamp is not None and labview_timestamp is not None else 'No sample'
+                ],
+                'Time': [
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    labview_timestamp.time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample',
+                    pd.to_datetime(re.search(r'Sample \d*:(.*)', abg_timestamp).group(1)).time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample'
+                ]
+            }
+
+            dates_df = pd.DataFrame(dates_data).set_index('Label')
+
+            # Display the DataFrame as a table
+            st.table(dates_df)
+            # st.markdown(f'''
             
-            * **Session date:** {datesdict['dates']['session']} 
+            # * **Session date:** {datesdict['dates']['session']}
 
-            * **Konica date:** {datesdict['dates']['konica']}
+            # * **Labview date:** {datesdict['dates']['labview']}
 
-            * **ABG file date:** {datesdict['dates']['bloodgas']}
+            # * **Konica date:** {datesdict['dates']['konica']}
 
-            * **Manual pulse ox entry date:** {datesdict['dates']['pulseox'] if datesdict['dates']['pulseox'] != [] else 'No manual pulse ox entry data'}
-            ''')
+            # * **ABG file date:** {datesdict['dates']['bloodgas']}
+
+            # * **Manual pulse ox entry date:** {datesdict['dates']['pulseox'] if datesdict['dates']['pulseox'] != [] else 'No manual pulse ox entry data'}
+
+            # * Sample {abg_timestamp_num} (Labview): {frame.loc[frame['sample'] == abg_timestamp_num, 'Timestamp'].values[0] if abg_timestamp_num in frame['sample'].values else 'No sample'} 
+
+            # * Sample {abg_timestamp_num} (ABG): {re.search(r'Sample \d*:(.*)', abg_timestamp).group(1) if abg_timestamp_num in frame['sample'].values else 'No sample 2'}
+
+            # ''')
         with right:
             st.markdown('### Patient ID Discrepancies')
             st.checkbox('Patient ID Discrepancies addressed', key='qc_id_discrepancy')
@@ -535,7 +574,6 @@ if pd.notnull(selected_session):
          ''')
             
         with two:
-            frame = create_subset_frame(labview_samples, selected_session, st.session_state.show_cleaned)[0]
             st.write('**Max bias:**', round(frame['bias'].abs().max(),2))
             st.write('**ARMS calculations:**')
             if not pd.isna(automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0]):    
@@ -567,28 +605,29 @@ if pd.notnull(selected_session):
                 st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
             ##########################################
 
-        plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
-        st.plotly_chart(create_plot(frame, plotcolumns, limit_to_manual_sessions), use_container_width=True)
-        frame['Nellcor/PI'] = frame['Nellcor/PI'].apply(lambda x: x/10 if pd.notnull(x) else x)
-        st.dataframe(frame.set_index('sample')
-                    .drop(columns=[ 'RR','Masimo HB/SpO2', 'Masimo HB/PI', 'Masimo HB/SpO2_diff_prev', 'Masimo HB/SpO2_diff_next',### Danni doesn't think there is Masimo HB/SpO2?
-                                    'Masimo 97/HR', 'Nellcor/HR', 'Masimo HB/HR', 'Rad97-60/HR', 'Nellcor PM1000N-1/HR', 'RR', ### They were added by Danni for labview_samples but don't need to be shown on QC dashboard
-                                    'sample_diff_prev',
-                                    'sample_diff_next',
-                                    # 'Nellcor/SpO2_diff_prev',
-                                    # 'Nellcor/SpO2_diff_next',
-                                    'Masimo 97/SpO2_diff_prev',
-                                    'Masimo 97/SpO2_diff_next',
-                                    'so2_symbol',
-                                    'Nellcor/SpO2_symbol',
-                                    'bias_symbol',
-                                    'so2_line',
-                                    'Nellcor/SpO2_line',
-                                    'Masimo 97/SpO2_line',
-                                    'Masimo 97/SpO2_symbol',
-                                    'bias_line'])
-                    [['Masimo 97/SpO2', 'Masimo 97/PI', 'Nellcor/SpO2', 'Nellcor/PI', 'so2', 'bias', 'Nellcor/SpO2_diff_prev', 'Nellcor/SpO2_diff_next', 'so2_diff_prev', 'so2_diff_next', 'Timestamp', 'Timestamp_diff_prev', 'Timestamp_diff_next', 'so2_stable', 'so2_reason', 'Nellcor_stable', 'Nellcor_reason', 'Masimo_stable', 'Masimo_reason', 'algo_status', 'algo', 'manual_so2', 'manual_algo_compare']],
-                    use_container_width=True)
+        if frame is not None:
+            plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
+            st.plotly_chart(create_plot(frame, plotcolumns, limit_to_manual_sessions), use_container_width=True)
+            frame['Nellcor/PI'] = frame['Nellcor/PI'].apply(lambda x: x/10 if pd.notnull(x) else x)
+            st.dataframe(frame.set_index('sample')
+                        .drop(columns=[ 'RR','Masimo HB/SpO2', 'Masimo HB/PI', 'Masimo HB/SpO2_diff_prev', 'Masimo HB/SpO2_diff_next',### Danni doesn't think there is Masimo HB/SpO2?
+                                        'Masimo 97/HR', 'Nellcor/HR', 'Masimo HB/HR', 'Rad97-60/HR', 'Nellcor PM1000N-1/HR', 'RR', ### They were added by Danni for labview_samples but don't need to be shown on QC dashboard
+                                        'sample_diff_prev',
+                                        'sample_diff_next',
+                                        # 'Nellcor/SpO2_diff_prev',
+                                        # 'Nellcor/SpO2_diff_next',
+                                        'Masimo 97/SpO2_diff_prev',
+                                        'Masimo 97/SpO2_diff_next',
+                                        'so2_symbol',
+                                        'Nellcor/SpO2_symbol',
+                                        'bias_symbol',
+                                        'so2_line',
+                                        'Nellcor/SpO2_line',
+                                        'Masimo 97/SpO2_line',
+                                        'Masimo 97/SpO2_symbol',
+                                        'bias_line'])
+                        [['Masimo 97/SpO2', 'Masimo 97/PI', 'Nellcor/SpO2', 'Nellcor/PI', 'so2', 'bias', 'Nellcor/SpO2_diff_prev', 'Nellcor/SpO2_diff_next', 'so2_diff_prev', 'so2_diff_next', 'Timestamp', 'Timestamp_diff_prev', 'Timestamp_diff_next', 'so2_stable', 'so2_reason', 'Nellcor_stable', 'Nellcor_reason', 'Masimo_stable', 'Masimo_reason', 'algo_status', 'algo', 'manual_so2', 'manual_algo_compare']],
+                        use_container_width=True)
         
         st.markdown('### Final QC')
         st.checkbox('QC complete', key='qc_complete')
