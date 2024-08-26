@@ -10,6 +10,7 @@ import os
 import openox as ox
 from session_functions import colormap
 from datetime import datetime
+import re
 
 
 st.set_page_config(page_title='Session Quality Control', layout='wide')
@@ -430,9 +431,12 @@ if pd.notnull(selected_session):
     except:
         frame = None
 
-    abg_timestamp = automated_qc_df.query('session_id == @selected_session')['abg2_timestamp'].values[0]
-    
-    abg_timestamp_num = pd.to_numeric(abg_timestamp.split("Sample ")[1].split(":")[0]) if abg_timestamp is not None else None
+    abg_text = automated_qc_df.query('session_id == @selected_session')['abg2_timestamp'].values[0]
+
+    match = re.search(r'Sample (\d*): (.*)', abg_text)
+    abg_timestamp = pd.to_datetime(match.group(2)) if match else None
+    abg_timestamp_num = pd.to_numeric(match.group(1)) if match else None
+
     try:
         labview_timestamp = pd.to_datetime(frame.loc[frame['sample'] == abg_timestamp_num, 'Timestamp'].values[0])
     except:
@@ -511,7 +515,7 @@ if pd.notnull(selected_session):
                 'Time': [
                     "",
                     labview_timestamp.time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample',
-                    labview_timestamp.time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample',
+                    abg_timestamp.time() if abg_timestamp is not None and labview_timestamp is not None else 'No sample',
                     pd.to_datetime(automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'konica_timestamp'].values[0]).time() if pd.notnull(automated_qc_df.loc[automated_qc_df['session_id']==selected_session,'konica_timestamp'].values[0]) else "",
                     "",
                 ]
@@ -547,16 +551,32 @@ if pd.notnull(selected_session):
                 st.error('Patient ID discrepancies found', icon="🚨")
             else:
                 st.success('No patient ID discrepancies found', icon="✅")
+            
+            # Create a DataFrame with the patient IDs
+            patient_ids = {
+                'File': ['Session patient ID', 'Konica patient ID', 'ABG file patient ID', 'Manual pulse ox entry patient ID'],
+                'Patient ID': [
+                    str(ptids['patient_ids']['session']),
+                    str(ptids['patient_ids']['konica']),
+                    str(ptids['patient_ids']['bloodgas']),
+                    str(ptids['patient_ids']['pulseox'])
+                ]
+            }
 
-            st.markdown(f'''
-            * **Session patient ID**: {ptids['patient_ids']['session']} 
+            # Convert the dictionary to a DataFrame
+            
 
-            * **Konica patient ID**: {ptids['patient_ids']['konica']}
+            # Display the DataFrame as a table
+            st.table(pd.DataFrame(patient_ids).set_index('File'))
+            # st.markdown(f'''
+            # * **Session patient ID**: {ptids['patient_ids']['session']} 
 
-            * **ABG file patient ID**: {ptids['patient_ids']['bloodgas']}
+            # * **Konica patient ID**: {ptids['patient_ids']['konica']}
 
-            * **Manual pulse ox entry patient ID**: {ptids['patient_ids']['pulseox']}
-            ''')
+            # * **ABG file patient ID**: {ptids['patient_ids']['bloodgas']}
+
+            # * **Manual pulse ox entry patient ID**: {ptids['patient_ids']['pulseox']}
+            # ''')
         
         st.markdown('### Data Quality Check')
         st.checkbox('Data quality checked (no bad points)', key='qc_quality')
@@ -572,34 +592,45 @@ if pd.notnull(selected_session):
         with two:
             st.write('**Max bias:**', round(frame['bias'].abs().max(),2))
             st.write('**ARMS calculations:**')
-            if not pd.isna(automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0]):    
-                for value in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items():
-                    st.write(value[0], round(value[1],2))
+            armsdf = {'Device': [key for key, val in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items() ],
+                      'ARMS (clean)': [f"{val:.2f}" for key, val in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items() ],
+                      # this handles the fact that the ARMS device names can be Masimo 97 or Rad97-60, but in the frame it is always Masimo 97
+                      'ARMS (all)': [f"{ox.arms(frame[device], frame['so2']):.2f}" if device in ['Masimo 97/SpO2', 'Nellcor/SpO2'] else f"{ox.arms(frame['Masimo 97/SpO2'], frame['so2']):.2f}" for device in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].keys()]
+                    }
+            
+            st.table(pd.DataFrame(armsdf).set_index('Device'))
+
+            # temp comment out until proven stable
+            # if not pd.isna(automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0]):    
+            #     for value in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items():
+            # #         st.write(value[0], round(value[1],2))
+
+                        
+            # ############# Danni Updates ###############
+            # st.write('**ARMS comparison:**')
+            # if labview_samples[labview_samples['session'] == selected_session]['Nellcor PM1000N-1/SpO2'].sum() > 0:
+            #     all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Rad97-60/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+            #     st.write('Masimo ARMS (all data):', round(all_data_arms,2))
+            #     cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Rad97-60/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+            #     st.write('Masimo ARMS (cleaned data):', round(cleaned_data_arms,2))
+            
+            #     all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Nellcor PM1000N-1/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+            #     st.write('Nellcor ARMS (all data):', round(all_data_arms,2))
+            #     cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Nellcor PM1000N-1/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+            #     st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
+            # else:
+            #     all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Masimo 97/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+            #     st.write('Masimo ARMS (all data):', round(all_data_arms,2))
+            #     cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Masimo 97/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+            #     st.write('Masimo ARMS (cleaned data):', round(cleaned_data_arms,2))
+            
+            #     all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Nellcor/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
+            #     st.write('Nellcor ARMS (all data):', round(all_data_arms,2))
+            #     cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Nellcor/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
+            #     st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
+            # ##########################################
+
             st.text_area('Data quality notes', key='qc_quality_notes')
-            
-            ############# Danni Updates ###############
-            st.write('**ARMS comparison:**')
-            if labview_samples[labview_samples['session'] == selected_session]['Nellcor PM1000N-1/SpO2'].sum() > 0:
-                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Rad97-60/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
-                st.write('Masimo ARMS (all data):', round(all_data_arms,2))
-                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Rad97-60/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
-                st.write('Masimo ARMS (cleaned data):', round(cleaned_data_arms,2))
-            
-                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Nellcor PM1000N-1/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
-                st.write('Nellcor ARMS (all data):', round(all_data_arms,2))
-                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Nellcor PM1000N-1/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
-                st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
-            else:
-                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Masimo 97/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
-                st.write('Masimo ARMS (all data):', round(all_data_arms,2))
-                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Masimo 97/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
-                st.write('Masimo ARMS (cleaned data):', round(cleaned_data_arms,2))
-            
-                all_data_arms = ox.arms(labview_samples[labview_samples['session'] == selected_session]['Nellcor/SpO2'], labview_samples[labview_samples['session'] == selected_session]['so2'])
-                st.write('Nellcor ARMS (all data):', round(all_data_arms,2))
-                cleaned_data_arms = ox.arms(labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['Nellcor/SpO2'], labview_samples[(labview_samples['session'] == selected_session) & labview_samples['algo_status']]['so2'])
-                st.write('Nellcor ARMS (cleaned data):', round(cleaned_data_arms,2))
-            ##########################################
 
         if frame is not None:
             plotcolumns = ['so2', 'Nellcor/SpO2', 'Masimo 97/SpO2', 'bias']
