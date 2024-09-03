@@ -595,7 +595,7 @@ if pd.notnull(selected_session):
             armsdf = {'Device': [key for key, val in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items() ],
                       'ARMS (clean)': [f"{val:.2f}" for key, val in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].items() ],
                       # this handles the fact that the ARMS device names can be Masimo 97 or Rad97-60, but in the frame it is always Masimo 97
-                      'ARMS (all)': [f"{ox.arms(labview_samples[labview_samples['session'] == selected_session][device], labview_samples[labview_samples['session'] == selected_session]['so2']):.2f}" if device in ['Masimo 97/SpO2', 'Nellcor/SpO2'] else f"{ox.arms(frame['Masimo 97/SpO2'], frame['so2']):.2f}" for device in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].keys()]
+                      'ARMS (all)': [f"{ox.arms(labview_samples[labview_samples['session'] == selected_session][device], labview_samples[labview_samples['session'] == selected_session]['so2']):.2f}" if device in ['Masimo 97/SpO2', 'Nellcor/SpO2', 'Nellcor PM1000N-1/SpO2'] else f"{ox.arms(frame['Masimo 97/SpO2'], frame['so2']):.2f}" for device in automated_qc_df.loc[automated_qc_df['session_id'] == selected_session, 'arms'].values[0].keys()]
                     }
             
             st.table(pd.DataFrame(armsdf).set_index('Device'))
