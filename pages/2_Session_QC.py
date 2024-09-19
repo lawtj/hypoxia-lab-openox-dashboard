@@ -16,6 +16,7 @@ import re
 st.set_page_config(page_title='Session Quality Control', layout='wide')
 
 # this df is the automated QC check that runs with labview_samples
+# it is the output of OpenOxQI.ipynb
 @st.cache_data(ttl='1h')
 def getdf():
     api_url = 'https://redcap.ucsf.edu/api/'
@@ -432,10 +433,15 @@ if pd.notnull(selected_session):
         frame = None
 
     abg_text = automated_qc_df.query('session_id == @selected_session')['abg2_timestamp'].values[0]
-
-    match = re.search(r'Sample (\d*): (.*)', abg_text)
-    abg_timestamp = pd.to_datetime(match.group(2)) if match else None
-    abg_timestamp_num = pd.to_numeric(match.group(1)) if match else None
+    # st.write(automated_qc_df.query('session_id == @selected_session'))
+    if automated_qc_df.query('session_id == @selected_session')['abg2_timestamp'].values[0] is not None:
+        match = re.search(r'Sample (\d*): (.*)', automated_qc_df.query('session_id == @selected_session')['abg2_timestamp'].values[0])
+        abg_timestamp = pd.to_datetime(match.group(2)) if match else None
+        abg_timestamp_num = pd.to_numeric(match.group(1)) if match else None
+    else:
+        abg_timestamp = None
+        abg_timestamp_num = None
+    
 
     try:
         labview_timestamp = pd.to_datetime(frame.loc[frame['sample'] == abg_timestamp_num, 'Timestamp'].values[0])
