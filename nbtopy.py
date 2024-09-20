@@ -377,6 +377,39 @@ tdf = joined_updated.groupby(by=['device']).mean(numeric_only=True)['sao2_70-80'
 tdf['sao2_70-80'] = tdf['sao2_70-80'].apply(lambda x: x*100)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
+### add PM1000N PI to dashboard
+# organize the Device 59 (Nellcor PM1000N) and Device 60 (Masimo Rad-97) PI to the same column
+joined_updated['Masimo 97/PI'] = joined_updated.apply(lambda row: row['Masimo 97/PI'] if pd.notnull(row['Masimo 97/PI']) else (row['Masimo HB/PI'] if pd.notnull(row['Masimo HB/PI']) else row['Rad97-60/PI']), axis=1)
+joined_updated['Nellcor/PI'] = joined_updated.apply(lambda row: row['Nellcor/PI'] if pd.notnull(row['Nellcor/PI']) else row['Nellcor PM1000N-1/PI'], axis=1)
+joined_updated['Nellcor/PI'] = joined_updated['Nellcor/PI'] / 10
+# report median and Q1, Q3 of Nellcor PI
+tdf = joined_updated.groupby('device')['Nellcor/PI'].agg(lambda x: f"{x.median():.2f} ({x.quantile(0.25):.2f}, {x.quantile(0.75):.2f})").reset_index()
+tdf.rename(columns={'Nellcor/PI': 'PM1000N PI Median (Q1, Q3)'}, inplace=True)
+# merge the result back into the original dataframe
+db = db.merge(tdf, on='device', how='outer')
+
+# groupby device and session, and count of number of session per device that have median Nellcor/PI <1
+# First, group by device and session, and calculate the median Nellcor/PI for each session
+tdf = joined_updated.groupby(['device', 'session'])['Nellcor/PI'].median().reset_index()
+# Create a new column to flag sessions where the median Nellcor/PI is less than 1
+tdf['PI_less_than_1'] = tdf['Nellcor/PI'] < 1
+# Now group by device and calculate the number of sessions with PI < 1 and the total number of sessions
+tdf = tdf.groupby('device').agg(
+    num_sessions_with_PI_less_than_1=('PI_less_than_1', 'sum'),  # Count sessions with PI < 1
+    total_sessions=('session', 'size')  # Total number of sessions per device
+).reset_index()
+# Add a percentage column
+tdf['percentage'] = (tdf['num_sessions_with_PI_less_than_1'] / tdf['total_sessions']) * 100
+# Create the final column as "number of sessions (percentage)"
+tdf['Count of Session with PI Median<1 (%)'] = tdf.apply(
+    lambda row: f"{row['num_sessions_with_PI_less_than_1']} ({row['percentage']:.2f}%)", axis=1
+)
+# Merge this information back into the `db` dataframe
+db = db.merge(tdf[['device', 'Count of Session with PI Median<1 (%)']], on='device', how='left')
+# Now `db` has a new column `sessions_summary` that includes the count and percentage of sessions with PI < 1
+print(db[['device', 'Count of Session with PI Median<1 (%)']].head())
+
+
 # %%
 # Check if each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
 # group the joined_updated table by device, create three new columns called 'so2_70-80', 'so2_80-90', 'so2_90-100' that is the count of so2 in each decade
@@ -508,7 +541,7 @@ column_dict_db_old = {'device':'Device',
                 }
 
 
-db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100']]
+db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'PM1000N PI Median (Q1, Q3)', 'Count of Session with PI Median<1 (%)']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v3 = {'device':'Device',
                         'priority':'Test Priority',
