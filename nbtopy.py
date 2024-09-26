@@ -53,7 +53,7 @@ print_memory_usage("After loading data")
 
 # start joining the data
 manual = manual.rename(columns={'sample_num':'sample', 'session_num':'session'})
-manual = manual[['patient_id','device','date','sample', 'session']]
+manual = manual[['patient_id','device','date','sample', 'session', 'saturation']]
 # the type of sample in manual was object, convert to float64
 manual['sample'] = manual['sample'].astype('float64')
 
@@ -146,13 +146,19 @@ joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 
 print_memory_usage("Before merging labview_samples and joined")
 joined = joined.rename(columns ={'date_x':'session_date', 'fitzpatrick_x':'fitzpatrick'})
-joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample']]
+joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample', 'saturation']]
 # joined_updated = pd.merge(joined, abg_updated, left_on = ['patient_id', 'session_date', 'session', 'sample'], right_on = ['patient_id', 'session_date','session', 'sample'], how='inner')
 joined_updated = pd.merge(joined, labview_samples, on = ['session', 'sample'], how='inner')
 print_memory_usage("After merging labview_samples and joined")
 
+# # remove encounters with fewer than 16 data points (per device)
+# sample_count_by_device_session = joined_updated.groupby(['device', 'session']).count()['sample']
+# device_session_to_keep = sample_count_by_device_session[sample_count_by_device_session >= 16].index
+# joined_updated = joined_updated[joined_updated.set_index(['device', 'session']).index.isin(device_session_to_keep)].reset_index()
+
 # remove encounters with fewer than 16 data points (per device)
-sample_count_by_device_session = joined_updated.groupby(['device', 'session']).count()['sample']
+# count the non-NaN 'so2' and 'saturation' values for each device-session pair
+sample_count_by_device_session = joined_updated.groupby(['device', 'session'])[['so2', 'saturation']].apply(lambda x: x.notna().all(axis=1).sum())
 device_session_to_keep = sample_count_by_device_session[sample_count_by_device_session >= 16].index
 joined_updated = joined_updated[joined_updated.set_index(['device', 'session']).index.isin(device_session_to_keep)].reset_index()
 
@@ -388,26 +394,50 @@ tdf.rename(columns={'Nellcor/PI': 'PM1000N PI Median (Q1, Q3)'}, inplace=True)
 # merge the result back into the original dataframe
 db = db.merge(tdf, on='device', how='outer')
 
-# groupby device and session, and count of number of session per device that have median Nellcor/PI <1
-# First, group by device and session, and calculate the median Nellcor/PI for each session
-tdf = joined_updated.groupby(['device', 'session'])['Nellcor/PI'].median().reset_index()
-# Create a new column to flag sessions where the median Nellcor/PI is less than 1
-tdf['PI_less_than_1'] = tdf['Nellcor/PI'] < 1
-# Now group by device and calculate the number of sessions with PI < 1 and the total number of sessions
-tdf = tdf.groupby('device').agg(
-    num_sessions_with_PI_less_than_1=('PI_less_than_1', 'sum'),  # Count sessions with PI < 1
-    total_sessions=('session', 'size')  # Total number of sessions per device
-).reset_index()
-# Add a percentage column
-tdf['percentage'] = (tdf['num_sessions_with_PI_less_than_1'] / tdf['total_sessions']) * 100
-# Create the final column as "number of sessions (percentage)"
-tdf['Count of Session with PI Median<1 (%)'] = tdf.apply(
-    lambda row: f"{row['num_sessions_with_PI_less_than_1']} ({row['percentage']:.2f}%)", axis=1
-)
-# Merge this information back into the `db` dataframe
-db = db.merge(tdf[['device', 'Count of Session with PI Median<1 (%)']], on='device', how='left')
-# Now `db` has a new column `sessions_summary` that includes the count and percentage of sessions with PI < 1
-print(db[['device', 'Count of Session with PI Median<1 (%)']].head())
+# # groupby device and session, and count of number of session per device that have median Nellcor/PI <1
+# # First, group by device and session, and calculate the median Nellcor/PI for each session
+# tdf = joined_updated.groupby(['device', 'session'])['Nellcor/PI'].median().reset_index()
+# # Create a new column to flag sessions where the median Nellcor/PI is less than 1
+# tdf['PI_less_than_1'] = tdf['Nellcor/PI'] < 1
+# # Now group by device and calculate the number of sessions with PI < 1 and the total number of sessions
+# tdf = tdf.groupby('device').agg(
+#     num_sessions_with_PI_less_than_1=('PI_less_than_1', 'sum'),  # Count sessions with PI < 1
+#     total_sessions=('session', 'size')  # Total number of sessions per device
+# ).reset_index()
+# # Add a percentage column
+# tdf['percentage'] = (tdf['num_sessions_with_PI_less_than_1'] / tdf['total_sessions']) * 100
+# # Create the final column as "number of sessions (percentage)"
+# tdf['Count of Session with PI Median<1 (%)'] = tdf.apply(
+#     lambda row: f"{row['num_sessions_with_PI_less_than_1']} ({row['percentage']:.2f}%)", axis=1
+# )
+# # Merge this information back into the `db` dataframe
+# db = db.merge(tdf[['device', 'Count of Session with PI Median<1 (%)']], on='device', how='left')
+# # Now `db` has a new column `sessions_summary` that includes the count and percentage of sessions with PI < 1
+# print(db[['device', 'Count of Session with PI Median<1 (%)']].head())
+
+# percentage of PI<1, PI1-2, and PI>2
+def categorize_pi(pi_value):
+    if pd.isna(pi_value):
+        return 'NaN'
+    elif pi_value < 1:
+        return 'PI < 1'
+    elif 1 <= pi_value <= 2:
+        return '1 ≤ PI ≤ 2'
+    else:
+        return 'PI > 2'
+
+joined_updated['nellcor_pi_category'] = joined_updated['Nellcor/PI'].apply(categorize_pi)
+# group by device and calculate the percentage of each category
+pi_percentage = joined_updated[joined_updated['nellcor_pi_category'] != 'NaN'].groupby('device')['nellcor_pi_category'].value_counts(normalize=True).mul(100).unstack(fill_value=0)
+pi_percentage = pi_percentage.rename(columns={
+    'PI < 1': '% PI <1',
+    '1 ≤ PI ≤ 2': '% 1 ≤ PI ≤ 2',
+    'PI > 2': '% PI >2'
+})
+pi_percentage = pi_percentage.applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
+# Merge these percentages back into the original 'db' DataFrame on the 'device' column
+db = db.merge(pi_percentage, on='device', how='left')
+
 
 
 # %%
@@ -541,7 +571,7 @@ column_dict_db_old = {'device':'Device',
                 }
 
 
-db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'PM1000N PI Median (Q1, Q3)', 'Count of Session with PI Median<1 (%)']]
+db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'PM1000N PI Median (Q1, Q3)', '% PI <1', '% 1 ≤ PI ≤ 2', '% PI >2']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v3 = {'device':'Device',
                         'priority':'Test Priority',
