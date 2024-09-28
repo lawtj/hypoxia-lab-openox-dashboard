@@ -53,7 +53,7 @@ print_memory_usage("After loading data")
 
 # start joining the data
 manual = manual.rename(columns={'sample_num':'sample', 'session_num':'session'})
-manual = manual[['patient_id','device','date','sample', 'session', 'saturation']]
+manual = manual[['patient_id','device','date','sample', 'session', 'saturation', 'probe_location']]
 # the type of sample in manual was object, convert to float64
 manual['sample'] = manual['sample'].astype('float64')
 
@@ -142,11 +142,10 @@ joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 # # Merge the joined table with the abg_updated table
 # print_memory_usage("Before merging abg and joined")
 # abg_updated.loc[:, 'date_calc'] = abg_updated['date_calc'].astype('datetime64[ns]') # convert to datetime so they can merge
-# print(abg_updated.columns)
 
 print_memory_usage("Before merging labview_samples and joined")
 joined = joined.rename(columns ={'date_x':'session_date', 'fitzpatrick_x':'fitzpatrick'})
-joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample', 'saturation']]
+joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample', 'saturation', 'probe_location']]
 # joined_updated = pd.merge(joined, abg_updated, left_on = ['patient_id', 'session_date', 'session', 'sample'], right_on = ['patient_id', 'session_date','session', 'sample'], how='inner')
 joined_updated = pd.merge(joined, labview_samples, on = ['session', 'sample'], how='inner')
 print_memory_usage("After merging labview_samples and joined")
@@ -390,7 +389,7 @@ joined_updated['Nellcor/PI'] = joined_updated.apply(lambda row: row['Nellcor/PI'
 joined_updated['Nellcor/PI'] = joined_updated['Nellcor/PI'] / 10
 # report median and Q1, Q3 of Nellcor PI
 tdf = joined_updated.groupby('device')['Nellcor/PI'].agg(lambda x: f"{x.median():.2f} ({x.quantile(0.25):.2f}, {x.quantile(0.75):.2f})").reset_index()
-tdf.rename(columns={'Nellcor/PI': 'PM1000N PI Median (Q1, Q3)'}, inplace=True)
+tdf.rename(columns={'Nellcor/PI': 'PI Median (Q1, Q3)'}, inplace=True)
 # merge the result back into the original dataframe
 db = db.merge(tdf, on='device', how='outer')
 
@@ -438,7 +437,34 @@ pi_percentage = pi_percentage.applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('
 # Merge these percentages back into the original 'db' DataFrame on the 'device' column
 db = db.merge(pi_percentage, on='device', how='left')
 
+# finger location count
+group_columns_mapping = {
+    'thumb': [1.0, 6.0],
+    'index_finger': [2.0, 7.0],
+    'middle_finger': [3.0, 8.0],
+    'ring_finger': [4.0, 9.0],
+    'pinky_finger': [5.0, 10.0]
+}
 
+def calculate_percentage(group):
+    # Total number of rows per device
+    total_count = group['probe_location'].count()
+    
+    # Create a dictionary to hold percentages for each finger group
+    percentage_dict = {}
+    
+    # For each group of probe locations (thumb, index finger, etc.)
+    for finger, values in group_columns_mapping.items():
+        count = group[group['probe_location'].isin(values)].shape[0]
+        percentage_dict[f'% in {finger.capitalize()}'] = int(round((count / total_count) * 100))
+    
+    return pd.Series(percentage_dict)
+print(joined_updated['probe_location'])
+# Group by device and calculate the percentages
+percentages_df = joined_updated.groupby('device').apply(calculate_percentage).reset_index()
+percentages_df.rename(columns=lambda x: x.replace('_', ' ').title() if '%' in x else x, inplace=True)
+percentages_df.iloc[:, 1:] = percentages_df.iloc[:, 1:].applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
+db = pd.merge(db, percentages_df, on='device', how='left')
 
 # %%
 # Check if each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
@@ -571,7 +597,8 @@ column_dict_db_old = {'device':'Device',
                 }
 
 
-db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'PM1000N PI Median (Q1, Q3)', '% PI <1', '% 1 ≤ PI ≤ 2', '% PI >2']]
+db_new_v3 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'PI Median (Q1, Q3)', '% PI <1', '% 1 ≤ PI ≤ 2', '% PI >2', '% In Thumb', '% In Index Finger',
+       '% In Middle Finger', '% In Ring Finger', '% In Pinky Finger']]
 #create a dictionary of column names and their descriptions
 column_dict_db_new_v3 = {'device':'Device',
                         'priority':'Test Priority',
