@@ -113,8 +113,8 @@ if selected_df == "ISO 2023/FDA 2024":
             # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
             .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['Avg Samples per Session'])
 
-            # Highlight if Range of number of data points per participant is in 16-30 (sao2)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with 16-30 Samples'])
+            # Highlight if Range of number of data points per participant is at least 16 (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with >=16 Samples'])
 
             # Highlight if Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
             .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 70-80 (pooled)'])
@@ -193,8 +193,8 @@ if selected_df == "ISO 2024/FDA 2024":
             # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
             .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['Avg Samples per Session'])
 
-            # Highlight if Range of number of data points per participant is in 16-30 (sao2)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with 16-30 Samples'])
+            # Highlight if Range of number of data points per participant is at least 16 (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with >=16 Samples'])
 
             # Highlight if Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
             .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 70-80 (pooled)'])
@@ -253,8 +253,8 @@ if selected_df == "ISO 2024 (Latest Draft)":
             # Highlight if Average of number of data points per participant/session = 24 (+/-4) (sao2)
             .map(lambda x: 'background-color: #b5e7a0' if x>=20 and x<=28 else "", subset=['Avg Samples per Session'])
 
-            # Highlight if Range of number of data points per participant is in 16-30 (sao2)
-            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with 16-30 Samples'])
+            # Highlight if Range of number of data points per participant is at least 16 (sao2)
+            .map(lambda x: 'background-color: #b5e7a0' if x>=24 else "", subset=['Unique Subjects with >=16 Samples'])
 
             # Highlight if Each decade between the 70% - 100% saturations contains 33% of the data points (sao2)
             .map(lambda x: 'background-color: #b5e7a0' if x>= 28 and x<=38 else "", subset=['%\n of SaO2 in 70-80 (pooled)'])

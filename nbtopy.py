@@ -62,18 +62,15 @@ manual['probe'] = manual['device'].apply(lambda x: int(str(x).split('.')[1]) if 
 manual['device'] = manual['device'].apply(lambda x: int(str(x).split('.')[0]) if isinstance(x, (float, str)) and '.' in str(x) else None)
 
 # merge the session and manual dataframes, so one row is one session with one device. 10 devices in one session = 10 rows
-# joined = session.merge(manual, left_on=['record_id','patient_id','session_date'], right_on=['session','patient_id','session_date'], how='right')
 joined = session.merge(manual, left_on=['record_id','patient_id'], right_on=['session','patient_id'], how='right')
 
 # calculate the ITA
 konica['ita'] = konica.apply(hlab.ita, axis=1)
 # take the median of each unique session
-# konica_unique_median = konica[konica['ita'] == konica.groupby(['session', 'group'])['ita'].transform('median')]
 konica_unique_median = konica.groupby(['session','group']).median(numeric_only=True).reset_index()
 # keep only Forehead site
 konica_unique_median_site = konica_unique_median[konica_unique_median['group'].isin(['Forehead (G)', 'Forehead (E)'])]
 # merge the konica data with the joined data
-# joined = joined.merge(konica_unique_median_site, left_on=['session','patient_id','session_date'], right_on=['session','upi','date'], how='left')
 joined = joined.merge(konica_unique_median_site[['session', 'group', 'ita']], on=['session'], how='left')
 print_memory_usage("After merging data")
 
@@ -146,14 +143,8 @@ joined['age_at_session'] = joined['session_date'].dt.year-joined['dob'].dt.year
 print_memory_usage("Before merging labview_samples and joined")
 joined = joined.rename(columns ={'date_x':'session_date', 'fitzpatrick_x':'fitzpatrick'})
 joined=joined[['patient_id','session_date','session','device','assigned_sex','dob','monk_forehead','monk_dorsal','ita','fitzpatrick', 'sample', 'saturation', 'probe_location']]
-# joined_updated = pd.merge(joined, abg_updated, left_on = ['patient_id', 'session_date', 'session', 'sample'], right_on = ['patient_id', 'session_date','session', 'sample'], how='inner')
 joined_updated = pd.merge(joined, labview_samples, on = ['session', 'sample'], how='inner')
 print_memory_usage("After merging labview_samples and joined")
-
-# # remove encounters with fewer than 16 data points (per device)
-# sample_count_by_device_session = joined_updated.groupby(['device', 'session']).count()['sample']
-# device_session_to_keep = sample_count_by_device_session[sample_count_by_device_session >= 16].index
-# joined_updated = joined_updated[joined_updated.set_index(['device', 'session']).index.isin(device_session_to_keep)].reset_index()
 
 # remove encounters with fewer than 16 data points (per device)
 # count the non-NaN 'so2' and 'saturation' values for each device-session pair
@@ -345,7 +336,7 @@ tdf['avg_sample'] = tdf['avg_sample'].round(2)
 db = db.merge(tdf, left_on='device', right_on='device', how='outer')
 
 # check range of number of samples per session, if the session satistifes the criteria, label as 1
-joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 16) & (x <= 30) else 0)
+joined_updated['sample_range'] = joined_updated['max_sample'].apply(lambda x: 1 if (x >= 16) else 0)
 # count the number of unique patient that have sample_range = 1 per device
 tdf = joined_updated[joined_updated['sample_range'] == 1].groupby(by=['device']).nunique()['patient_id'].reset_index()
 tdf.rename(columns={'patient_id':'sample_range'}, inplace=True)
@@ -459,7 +450,7 @@ def calculate_percentage(group):
         percentage_dict[f'% in {finger.capitalize()}'] = int(round((count / total_count) * 100))
     
     return pd.Series(percentage_dict)
-print(joined_updated['probe_location'])
+
 # Group by device and calculate the percentages
 percentages_df = joined_updated.groupby('device').apply(calculate_percentage).reset_index()
 percentages_df.rename(columns=lambda x: x.replace('_', ' ').title() if '%' in x else x, inplace=True)
@@ -538,7 +529,7 @@ column_dict_db_new_v1 = {'device':'Device',
                 'ita<-50&MonkHIJ': 'ITA < -50 & Monk HIJ',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
-                'sample_range':'Unique Subjects with 16-30 Samples',
+                'sample_range':'Unique Subjects with >=16 Samples',
                 'so2<85':'%\n of Sessions Provides SaO2 < 85',
                 "min_sao2":'Min SaO2',
                 "max_sao2":'Max SaO2',
@@ -568,7 +559,7 @@ column_dict_db_new_v2 = {'device':'Device',
                 'unique_monk_dorsal':'Unique Monk Dorsal',
                 'priority':'Test Priority',
                 'avg_sample':'Avg Samples per Session',
-                'sample_range':'Unique Subjects with 16-30 Samples',
+                'sample_range':'Unique Subjects with >=16 Samples',
                 "min_sao2":'Min SaO2',
                 "max_sao2":'Max SaO2',
                 'so2<85':'%\n of Sessions Provides SaO2 < 85',
@@ -610,7 +601,7 @@ column_dict_db_new_v3 = {'device':'Device',
                         'ita<-30&MonkHIJ':'ITA < -30 & Monk HIJ',
                         'ita<-50&MonkHIJ': 'ITA < -50 & Monk HIJ',
                         'avg_sample':'Avg Samples per Session',
-                        'sample_range':'Unique Subjects with 16-30 Samples',
+                        'sample_range':'Unique Subjects with >=16 Samples',
                         'so2<85':'%\n of Sessions Provides SaO2 < 85',
                         "min_sao2":'Min SaO2',
                         "max_sao2":'Max SaO2',
