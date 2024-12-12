@@ -424,7 +424,10 @@ pi_percentage = pi_percentage.rename(columns={
     '1 ≤ PI ≤ 2': '% 1 ≤ PI ≤ 2',
     'PI > 2': '% PI >2'
 })
-pi_percentage = pi_percentage.applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
+# Apply formatting column-wise using map
+for col in pi_percentage.columns:
+    pi_percentage[col] = pi_percentage[col].map(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
+# pi_percentage = pi_percentage.applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
 # Merge these percentages back into the original 'db' DataFrame on the 'device' column
 db = db.merge(pi_percentage, on='device', how='left')
 
@@ -454,7 +457,10 @@ def calculate_percentage(group):
 # Group by device and calculate the percentages
 percentages_df = joined_updated.groupby('device').apply(calculate_percentage).reset_index()
 percentages_df.rename(columns=lambda x: x.replace('_', ' ').title() if '%' in x else x, inplace=True)
-percentages_df.iloc[:, 1:] = percentages_df.iloc[:, 1:].applymap(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
+# print(percentages_df.iloc[:, 1:].dtypes)
+# Apply formatting column-wise using DataFrame.map
+for col in percentages_df.columns[1:]:
+    percentages_df[col] = percentages_df[col].map(lambda x: f"{x:.2f}".rstrip('0').rstrip('.'))
 db = pd.merge(db, percentages_df, on='device', how='left')
 
 # %%
@@ -509,6 +515,8 @@ db['Unique Monk Dorsal Values'] = db['Unique Monk Dorsal Values'].apply(lambda x
 db['ITA < -50 & Monk HIJ SID'] = db['ITA < -50 & Monk HIJ SID'].apply(lambda x: [] if isinstance(x, float) and pd.isna(x) else (x if isinstance(x, list) else [x]))
 # fill zeroes
 db.fillna(0, inplace=True)
+
+print(f"Device 81 has {db[db['device']==81]['Unique Subjects'].iloc[0]} unique subjects.")
 
 db_new_v1 = db[['Manufacturer', 'Model', 'priority', 'device', 'Unique Subjects', 'Female', 'Male', 'monk_forehead_A', 'monk_forehead_D', 'monk_forehead_H', 'unique_monk_forehead', 'Unique Monk Forehead Values', 'unique_monk_dorsal', 'Unique Monk Dorsal Values', 'ita>=50&MonkABCD', 'ita<=-45&MonkHIJ', 'ita>30&MonkABC', 'ita30to-30&MonkDEFG', 'ita<-30&MonkHIJ', 'ita<-50&MonkHIJ', 'ITA < -50 & Monk HIJ SID', 'avg_sample', 'sample_range', 'min_sao2', 'max_sao2', 'so2<85', 'sao2_70-80', 'so2_70-80', 'so2_80-90', 'so2_90-100', 'session_count']]
 #create a dictionary of column names and their descriptions
