@@ -4,41 +4,74 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import ast
-from redcap import Project
 import io
 import os
 import openox as ox
 from session_functions import colormap
 from datetime import datetime
 import re
+from libsql_client import Client
+import asyncio
 
 
 st.set_page_config(page_title='Session Quality Control', layout='wide')
+
+
+# --- Turso Client Initialization ---
+@st.cache_resource
+def get_turso_client():
+    """Initializes and returns a Turso database client."""
+    url = st.secrets.get("TURSO_DB_URL")
+    auth_token = st.secrets.get("TURSO_AUTH_TOKEN")
+    if not url or not auth_token:
+        raise ValueError("Turso database URL and auth token must be set in secrets.")
+
+    if not url.startswith("libsql://"):
+        url = "libsql://" + url.replace("https://", "").replace("http://", "")
+
+    return Client(url, auth_token=auth_token)
+
 
 # this df is the automated QC check that runs with labview_samples
 # it is the output of OpenOxQI.ipynb
 @st.cache_data(ttl='1h')
 def getdf():
-    api_url = 'https://redcap.ucsf.edu/api/'
-    api_k = st.secrets['api_k']
-    proj = Project(api_url, api_k)
-    f = io.BytesIO(proj.export_file(record='10', field='file')[0])
-    df = pd.read_pickle(f)
+    """Fetches automated QC data from Turso DB."""
+    client = get_turso_client()
+    rs = asyncio.run(client.execute("SELECT * FROM automated_qc"))
+    df = rs.to_pandas()
+
+    # Convert columns back to their original types
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='ignore')
+        if df[col].dtype == 'object':
+            df[col] = df[col].replace({'True': True, 'False': False, 'nan': np.nan, 'None': None})
+
+    # Handle columns that are dicts/lists
+    for col in ['dates', 'patient_ids', 'arms', 'abg_timestamps', 'konica_timestamps', 'manual_pulse_ox_timestamps']:
+        if col in df.columns:
+            df[col] = df[col].apply(safe_literal_eval)
+
     return df
+
 
 automated_qc_df = getdf()
 
 #QC status is the manual QC review
+@st.cache_data(ttl='1h')
 def get_qc_status():
-    api_url = 'https://redcap.ucsf.edu/api/'
-    api_k = st.secrets['REDCAP_QC']
-    proj = Project(api_url, api_k)
-    df = proj.export_records(format_type='df')
-
+    """Fetches QC status data from Turso DB."""
+    client = get_turso_client()
+    rs = asyncio.run(client.execute("SELECT * FROM qc_status"))
+    df = rs.to_pandas()
+    # Convert types
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='ignore')
+        if df[col].dtype == 'object':
+            df[col] = df[col].replace({'True': True, 'False': False, 'nan': np.nan, 'None': None})
     return df
 
 qc_status = get_qc_status()
-qc_status=qc_status.reset_index()
 
 def label_manual_samples(labview_samples, drop_dict):
     # label samples to be dropped
@@ -59,14 +92,16 @@ def label_manual_samples(labview_samples, drop_dict):
 
 @st.cache_data(ttl='1h')
 def get_labview_samples():
-    api_url = 'https://redcap.ucsf.edu/api/'
-    try:
-        api_k = st.secrets['api_k']
-    except:
-        api_k = os.environ['REDCAP_FILE_RESPOSITORY']
-    proj = Project(api_url, api_k)
-    f = io.BytesIO(proj.export_file(record='8', field='file')[0])
-    labview_samples = pd.read_csv(f)
+    """Fetches labview samples data from Turso DB."""
+    client = get_turso_client()
+    rs = asyncio.run(client.execute("SELECT * FROM labview_samples"))
+    labview_samples = rs.to_pandas()
+
+    # Convert types
+    for col in labview_samples.columns:
+        labview_samples[col] = pd.to_numeric(labview_samples[col], errors='ignore')
+        if labview_samples[col].dtype == 'object':
+            labview_samples[col] = labview_samples[col].replace({'True': True, 'False': False, 'nan': np.nan, 'None': None})
 
     from exclude_unclean import drop_dict
     labview_samples = label_manual_samples(labview_samples, drop_dict)
@@ -173,27 +208,51 @@ def on_click_previous():
     else:
         st.session_state['selected_session'] = next_session
 
-def update_qc_field(df, session_id, ):
+async def update_qc_field_async(df, session_id):
     # first, check if qc_complete is True, but if any of the other fields are False, then qc_complete should be False
     if st.session_state.qc_complete and not all([st.session_state.qc_notes, st.session_state.qc_missing, st.session_state.qc_date_discrepancy, st.session_state.qc_id_discrepancy, st.session_state.qc_quality]):
         qc_message.error('Cannot set QC complete, some issues are not resolved.')
         return
-    api_url = 'https://redcap.ucsf.edu/api/'
-    api_k = st.secrets['REDCAP_QC']
-    proj = Project(api_url, api_k)
-    update_automated_qc_df = qc_status[qc_status['session_id'] == session_id]
-    update_automated_qc_df['session_notes_addressed'] = st.session_state.qc_notes
-    update_automated_qc_df['missing_files_resolved'] = st.session_state.qc_missing
-    update_automated_qc_df['date_discrepancies_resolved'] = st.session_state.qc_date_discrepancy
-    update_automated_qc_df['id_discrepancies_resolved'] = st.session_state.qc_id_discrepancy
-    update_automated_qc_df['data_quality_checked'] = st.session_state.qc_quality
-    update_automated_qc_df['qc_complete'] = st.session_state.qc_complete
-    update_automated_qc_df['data_quality_notes'] = st.session_state.qc_quality_notes
-    update_automated_qc_df['data_quality_action'] = st.session_state.qc_data_qualtiy_action
-    proj.import_records(update_automated_qc_df, import_format='df')
-    qc_message.success(f'Session {selected_session}: QC status updated', icon='✅')
+
+    client = get_turso_client()
+
+    # Construct the SET part of the UPDATE statement
+    set_clauses = [
+        "session_notes_addressed = ?",
+        "missing_files_resolved = ?",
+        "date_discrepancies_resolved = ?",
+        "id_discrepancies_resolved = ?",
+        "data_quality_checked = ?",
+        "qc_complete = ?",
+        "data_quality_notes = ?",
+        "data_quality_action = ?"
+    ]
+
+    # SQLite expects boolean values as 0 or 1
+    params = [
+        int(st.session_state.qc_notes),
+        int(st.session_state.qc_missing),
+        int(st.session_state.qc_date_discrepancy),
+        int(st.session_state.qc_id_discrepancy),
+        int(st.session_state.qc_quality),
+        int(st.session_state.qc_complete),
+        st.session_state.qc_quality_notes,
+        int(st.session_state.qc_data_qualtiy_action)
+    ]
+
+    sql = f"UPDATE qc_status SET {', '.join(set_clauses)} WHERE session_id = ?"
+    params.append(str(session_id)) # session_id is stored as text
+
+    await client.execute(sql, params)
+
+    qc_message.success(f'Session {selected_session}: QC status updated in Turso DB', icon='✅')
     qc_message.caption(pd.Timestamp.now())
+    # Re-run the query to get the updated data
+    st.cache_data.clear()
     on_click_next()
+
+def update_qc_field(df, session_id):
+    asyncio.run(update_qc_field_async(df, session_id))
 
 ####################### title #######################
 
