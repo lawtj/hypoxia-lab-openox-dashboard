@@ -13,11 +13,14 @@ def load_project(key):
     df = project.export_records(format_type='df')
     return df
 
-def st_load_project(key):
+def st_load_project(key, forms=None):
     api_key = st.secrets[key]
     api_url = 'https://redcap.ucsf.edu/api/'
     project = Project(api_url, api_key)
-    df = project.export_records(format_type='df')
+    kwargs = {"format_type": "df"}
+    if forms:  # list of REDCap instrument "form names"
+        kwargs["forms"] = forms
+    df = project.export_records(**kwargs)
     return df
 
 #reshape manual entered data into long format

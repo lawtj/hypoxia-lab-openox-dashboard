@@ -8,7 +8,8 @@ participant = participant.reset_index()
 participant = participant.drop(columns=['subject_id'])
 participant = participant.rename(columns={'record_id':'subject_id'})
 participant = participant[participant['dob'].between('1960-01-01','2007-12-31')]
-session = ox.st_load_project('REDCAP_SESSION')
+SESSION_FORMS = ["hypoxia_lab_session", "sponsor", "study_pi", "device_settings"]  
+session = ox.st_load_project('REDCAP_SESSION', forms=SESSION_FORMS) # to avoid key errors from pulling Labview Samples and Qc Status from redcap session
 session = session.reset_index()
 session = session.rename(columns={'record_id':'session','patient_id':'subject_id'})
 

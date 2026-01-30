@@ -4,22 +4,14 @@ import math
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import hypoxialab_functions as ox
 
 # @st.cache_data
-def st_load_project(key):
-    api_key = st.secrets[key]
-    api_url = 'https://redcap.ucsf.edu/api/'
-    project = Project(api_url, api_key)
-    df = project.export_records(format_type='df')
-    return df
-
-def ita(row):
-    return (np.arctan((row['lab_l']-50)/row['lab_b'])) * (180/math.pi)
-
-session = st_load_project('REDCAP_SESSION').reset_index()
-session = session.rename(columns={'record_id':'session'})
-konica = st_load_project('REDCAP_KONICA').rename(columns={'upi':'patient_id'})
-konica['ita'] = konica.apply(ita, axis=1)
+SESSION_FORMS = ["hypoxia_lab_session", "sponsor", "study_pi", "device_settings"]  
+session = ox.st_load_project('REDCAP_SESSION', forms=SESSION_FORMS) # to avoid key errors from pulling Labview Samples and Qc Status from redcap session
+session = session.reset_index().rename(columns={'record_id':'session'})
+konica = ox.st_load_project('REDCAP_KONICA').rename(columns={'upi':'patient_id'})
+konica['ita'] = konica.apply(ox.ita, axis=1)
 # konica = konica[konica['ita'] == konica.groupby(['session', 'group'])['ita'].transform('median')]
 konica = konica.groupby(['session','group']).median(numeric_only=True).reset_index()
 

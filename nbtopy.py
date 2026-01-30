@@ -25,7 +25,8 @@ def print_memory_usage(description):
 # %%
 print_memory_usage("Start of script")
 
-session = hlab.st_load_project('REDCAP_SESSION')
+SESSION_FORMS = ["hypoxia_lab_session", "sponsor", "study_pi", "device_settings"]  
+session = hlab.st_load_project('REDCAP_SESSION', forms=SESSION_FORMS) # to avoid key errors from pulling Labview Samples and Qc Status from redcap session
 session = session.reset_index()
 manual = hlab.st_load_project('REDCAP_MANUAL') 
 participant = hlab.st_load_project('REDCAP_PARTICIPANT')

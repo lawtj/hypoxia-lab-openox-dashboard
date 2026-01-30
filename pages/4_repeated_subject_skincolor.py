@@ -4,8 +4,8 @@ import plotly.express as px
 import pandas as pd
 
 ### load data
-session = ox.load_project('REDCAP_SESSION')
-session = session.reset_index()
+SESSION_FORMS = ["hypoxia_lab_session", "sponsor", "study_pi", "device_settings"]  
+session = ox.st_load_project('REDCAP_SESSION', forms=SESSION_FORMS) # to avoid key errors from pulling Labview Samples and Qc Status from redcap session
 session = session.reset_index()
 session = session.rename(columns={'record_id': 'session', 'patient_id': 'subject_id'})
 
