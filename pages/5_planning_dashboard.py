@@ -55,6 +55,8 @@ racedict = {
     'Caucasian Asian': 'Asian Caucasian',
 }
 participant_session.race.replace(racedict, inplace=True)
+participant_session.assigned_sex.replace({0: 'Male', 1: 'Female', '0': 'Male', '1': 'Female'}, inplace=True)
+participant_session.ethnicity.replace({1: 'Not Hispanic', 2: 'Hispanic', '1': 'Not Hispanic', '2': 'Hispanic'}, inplace=True)
 
 ### Demographic Data Table
 st.title('Demographic Data Table')
