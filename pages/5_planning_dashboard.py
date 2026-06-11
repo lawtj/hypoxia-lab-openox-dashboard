@@ -59,8 +59,9 @@ participant_session.assigned_sex.replace({0: 'Male', 1: 'Female', '0': 'Male', '
 participant_session.ethnicity.replace({1: 'Not Hispanic', 2: 'Hispanic', '1': 'Not Hispanic', '2': 'Hispanic'}, inplace=True)
 
 ### Demographic Data Table
-st.title('Demographic Data Table')
 
+st.title('Demographic Data Table')
+st.info('Select the session IDs and fields to include in the table.')
 selected_session = st.multiselect('Select session IDs for the study', participant_session['session'].sort_values(ascending=False))
 selected_fields = st.multiselect('Select fields to be included in the table', session.columns)
 
