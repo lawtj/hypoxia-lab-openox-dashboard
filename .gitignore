@@ -6,3 +6,4 @@
 config.py
 pages/.DS_Store
 *.json
+.venv

@@ -54,9 +54,9 @@ racedict = {
     'Asian\nOther/Mutiethnic': 'Other/Mutiethnic Asian',
     'Caucasian Asian': 'Asian Caucasian',
 }
-participant_session.race.replace(racedict, inplace=True)
-participant_session.assigned_sex.replace({0: 'Male', 1: 'Female', '0': 'Male', '1': 'Female'}, inplace=True)
-participant_session.ethnicity.replace({1: 'Not Hispanic', 2: 'Hispanic', '1': 'Not Hispanic', '2': 'Hispanic'}, inplace=True)
+participant_session["race"] = participant_session["race"].replace(racedict)
+participant_session["assigned_sex"] = participant_session["assigned_sex"].replace({0: 'Male', 1: 'Female', '0': 'Male', '1': 'Female'})
+participant_session["ethnicity"] = participant_session["ethnicity"].replace({1: 'Not Hispanic', 2: 'Hispanic', '1': 'Not Hispanic', '2': 'Hispanic'})
 
 ### Demographic Data Table
 
